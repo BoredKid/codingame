@@ -143,7 +143,6 @@ while (true) {
             light="0"
         }
         // precaution against monsters
-        // 729
         if(sortedMonsters.length > 0 && calcDistance(presentDrone.droneX,presentDrone.droneY, sortedMonsters[0].creatureX, sortedMonsters[0].creatureY)<=1500){
             const recommendedDirection = goToOppositeDirection(presentDrone.droneX-sortedMonsters[0].creatureX,presentDrone.droneY-sortedMonsters[0].creatureY);
              console.log(`MOVE ${recommendedDirection[0]} ${recommendedDirection[1]} 0 Faut fuir là ...`)

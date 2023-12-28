@@ -44,11 +44,6 @@ interface Drone {
     scans: number[]
 }
 
-interface RadarBlip {
-    fishId: number
-    dir: string
-}
-
 // Les valeurs du radars pour repérés les poissons
 // NB: Si l'entité partage la même coordonnée x que le drone, elle sera considérée comme étant à
 // gauche. Si l'entité partage la même coordonnée y que le drone, elle sera considérée comme étant
@@ -59,6 +54,13 @@ enum RadarValue {
     BL = "BL", // BOTTOM LEFT
     BR = "BR", // BOTTOM RIGHT
 }
+
+interface RadarBlip {
+    fishId: number
+    dir: RadarValue
+}
+
+
 
 // * CONSTANTES *
 
@@ -108,6 +110,25 @@ const ALL_FISH_SAME_TYPE = 4; // le nombre de points obtenu pour tous les poisso
 
 const calcDistance: (vec1: Vector, vec2: Vector) => number = (vec1, vec2) => {
     return Math.round(Math.sqrt(Math.pow(vec1.x - vec2.x, 2) + Math.pow(vec1.y - vec2.y, 2)))
+}
+
+const goToOppositeDirection: (diffX: number, diffY: number) => Vector = (diffX, diffY) => {
+    return { x: diffX > 0 ? 9999 : 0, y: diffY > 0 ? 9999 : 0 }
+}
+
+const getMoveFromRadar: (radar: RadarValue) => number[] = (radar) => {
+    switch (radar) {
+        case 'TL':
+            return [0, 0]
+        case 'TR':
+            return [9999, 0]
+        case 'BR':
+            return [9999, 9999]
+        case 'BL':
+            return [0, 9999]
+        default:
+            return [5000, 5000]
+    }
 }
 
 // * Execution du programme: Initialisation *
@@ -184,19 +205,63 @@ while (true) {
         const [_droneId, _fishId, dir] = readline().split(' ')
         const droneId = parseInt(_droneId)
         const fishId = parseInt(_fishId)
-        myRadarBlips.get(droneId)!.push({ fishId, dir })
+        if (dir in RadarValue) {
+            myRadarBlips.get(droneId)!.push({ fishId, dir: dir as RadarValue })
+        }
     }
 
-    console.error(FISH_TYPE_ALTITUDE)
+    const visibleMonsters = visibleFish.filter((fish => fish.detail.type === FishType.MONSTER));
+    const visibleUnscannedFish = visibleFish.filter(fish => fish.detail.type !== FishType.MONSTER && !myScans.includes(fish.fishId));
+    let alreadyPursuedFishes = []; // dans ce tableau on mettra les poissons déjà poursuivis
 
     for (const drone of myDrones) {
         const x = drone.pos.x
         const y = drone.pos.y
-        // TODO: Implement logic on where to move here
-        const targetX = 5000
-        const targetY = 5000
-        const light = 1
 
-        console.log(`MOVE ${targetX} ${targetY} ${light}`)
+        const monstersSortedByClosest = visibleMonsters.sort((monsterA, monsterB) => calcDistance(drone.pos, monsterA.pos) - calcDistance(drone.pos, monsterB.pos));
+        // on enleve les poissons déjà poursuivis par quelqu'un et on les trie par distance par rapport à notre drone
+        const unscannedFishesSortedByClosest = visibleUnscannedFish.filter(fish => !alreadyPursuedFishes.includes(fish.fishId)).sort((fishA, fishB) => calcDistance(drone.pos, fishA.pos) - calcDistance(drone.pos, fishB.pos));
+        // we remove already scanned fish and unscanned fishes that are visible from other drones and monsters
+        const radarBlipsWithoutMonster = myRadarBlips.get(drone.droneId)?.filter(blip => !myScans.includes(blip.fishId) && !alreadyPursuedFishes.includes(blip.fishId) && !visibleUnscannedFish.map(fish => fish.fishId).includes(blip.fishId) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER)
+
+        let targetX = null;
+        let targetY = null;
+        let light = 1;
+        let message = "";
+
+
+        // light decision
+        if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 2000) {
+            light = 0;
+        }
+
+        // target decision
+        if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 1500) {
+            const target = goToOppositeDirection(drone.pos.x - monstersSortedByClosest[0].pos.x, drone.pos.y - monstersSortedByClosest[0].pos.y);
+            [targetX, targetY] = [target.x, target.y];
+            light = 0;
+            message = "Faut fuir là ...";
+        } else if (drone.scans.length >= 3) {
+            targetX = x;
+            targetY = 0;
+            message = "Surface"
+        } else if (unscannedFishesSortedByClosest.length > 0) {
+            [targetX, targetY] = [unscannedFishesSortedByClosest[0].pos.x, unscannedFishesSortedByClosest[0].pos.y]
+            message = `Hunting ${unscannedFishesSortedByClosest[0].fishId} ${unscannedFishesSortedByClosest[0].pos.x} ${unscannedFishesSortedByClosest[0].pos.y}`
+            alreadyPursuedFishes.push(unscannedFishesSortedByClosest[0].fishId);
+
+        } else if (radarBlipsWithoutMonster?.length > 0) {
+            [targetX, targetY] = getMoveFromRadar(radarBlipsWithoutMonster[0].dir)
+            message = `Radar ${radarBlipsWithoutMonster[0].fishId} ${radarBlipsWithoutMonster[0].dir}`
+            alreadyPursuedFishes.push(radarBlipsWithoutMonster[0].fishId);
+        }
+
+        // we log the selected move
+        if (targetX !== null && targetY !== null && calcDistance({ x: targetX, y: targetY }, drone.pos) > 0) {
+            console.log(`MOVE ${targetX} ${targetY} ${light} ${message}`)
+        } else {
+            console.log(`WAIT ${light} ${message}`)
+        }
+
     }
 }
