@@ -1,3 +1,4 @@
+// Previous ranking: 958
 // * Interfaces *
 interface Vector {
     x: number
@@ -42,6 +43,7 @@ interface Drone {
     dead: number
     battery: number
     scans: number[]
+    droneHasBeenToBottom?: boolean
 }
 
 // Les valeurs du radars pour repérés les poissons
@@ -134,12 +136,16 @@ const getMoveFromRadar: (radar: RadarValue) => number[] = (radar) => {
 // * Execution du programme: Initialisation *
 
 const fishDetails = new Map<number, FishDetail>()
+let monsterNumber = 0;
 
 const fishCount = parseInt(readline())
 for (let i = 0; i < fishCount; i++) {
     const [fishId, color, type] = readline().split(' ').map(Number)
     fishDetails.set(fishId, { color, type })
+    if (type === FishType.MONSTER) monsterNumber += 1;
 }
+
+let droneHasBeenToBottom = false;
 
 //  * Execution du programme:  game loop *
 while (true) {
@@ -170,7 +176,7 @@ while (true) {
     for (let i = 0; i < myDroneCount; i++) {
         const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
         const pos = { x: droneX, y: droneY }
-        const drone = { droneId, pos, dead, battery, scans: [] }
+        const drone = { droneId, pos, dead, battery, scans: [], droneHasBeenToBottom: i === 0 ? droneHasBeenToBottom : true }
         droneById.set(droneId, drone)
         myDrones.push(drone)
         myRadarBlips.set(droneId, [])
@@ -210,13 +216,23 @@ while (true) {
         }
     }
 
+    // tous les scans non validés encore
+    const scansToValidate = myDrones.reduce((scans, drone) => scans.concat(drone.scans), []);
+
     const visibleMonsters = visibleFish.filter((fish => fish.detail.type === FishType.MONSTER));
-    const visibleUnscannedFish = visibleFish.filter(fish => fish.detail.type !== FishType.MONSTER && !myScans.includes(fish.fishId));
+    // on enleve des poissons visibles tous les monstres et les poissons déjà scannés (validés ou pas)
+    const visibleUnscannedFish = visibleFish.filter(fish => fish.detail.type !== FishType.MONSTER && !myScans.includes(fish.fishId) && !scansToValidate.includes(fish.fishId));
     let alreadyPursuedFishes = []; // dans ce tableau on mettra les poissons déjà poursuivis
 
     for (const drone of myDrones) {
         const x = drone.pos.x
         const y = drone.pos.y
+
+        // we want one drone to go to the bottom and back to scan some fishes
+        if (y >= 7500 && !drone.droneHasBeenToBottom) {
+            droneHasBeenToBottom = true;
+            drone.droneHasBeenToBottom = true;
+        }
 
         const monstersSortedByClosest = visibleMonsters.sort((monsterA, monsterB) => calcDistance(drone.pos, monsterA.pos) - calcDistance(drone.pos, monsterB.pos));
         // on enleve les poissons déjà poursuivis par quelqu'un et on les trie par distance par rapport à notre drone
@@ -238,10 +254,14 @@ while (true) {
         // target decision
         if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 1500) {
             const target = goToOppositeDirection(drone.pos.x - monstersSortedByClosest[0].pos.x, drone.pos.y - monstersSortedByClosest[0].pos.y);
-            [targetX, targetY] = [target.x, target.y];
+            [targetX, targetY] = [target.x, /*target.*/y]; // TODO: check if this avoid strategy is better
             light = 0;
             message = "Faut fuir là ...";
-        } else if (drone.scans.length >= 3) {
+        } else if (!drone.droneHasBeenToBottom) {
+            targetX = Math.round(Math.random() * 10000);
+            targetY = 10000;
+            message = "To Bottom"
+        } else if (drone.scans.length >= 3 || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
             targetX = x;
             targetY = 0;
             message = "Surface"
@@ -258,9 +278,9 @@ while (true) {
 
         // we log the selected move
         if (targetX !== null && targetY !== null && calcDistance({ x: targetX, y: targetY }, drone.pos) > 0) {
-            console.log(`MOVE ${targetX} ${targetY} ${light} ${message}`)
+            console.log(`MOVE ${targetX} ${targetY} ${light} ${drone.droneId} ${message}`)
         } else {
-            console.log(`WAIT ${light} ${message}`)
+            console.log(`WAIT ${light} ${drone.droneId} ${message}`)
         }
 
     }
