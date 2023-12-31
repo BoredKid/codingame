@@ -177,7 +177,7 @@ let myDroneCount = parseInt(readline())
 for (let i = 0; i < myDroneCount; i++) {
     const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
     const pos = { x: droneX, y: droneY }
-    const drone = { droneId, pos, dead, battery, scans: [], droneHasBeenToBottom: i === 0 ? false : true, wasFleeing: false, lastTarget: { x: 0, y: 0 } }
+    const drone = { droneId, pos, dead, battery, scans: [], droneHasBeenToBottom: false, wasFleeing: false, lastTarget: { x: 0, y: 0 } }
     droneById.set(droneId, drone)
     myDrones.push(drone)
     myRadarBlips.set(droneId, [])
@@ -271,11 +271,7 @@ while (true) {
             light = 0;
             message = "On continue de fuir...";
             myDrones[droneIndex] = { ...myDrones[droneIndex], wasFleeing: false }
-        } /*else if (!drone.droneHasBeenToBottom) {
-            targetX = Math.round(Math.random() * 10000);
-            targetY = 10000;
-            message = "To Bottom"
-        }*/ else if (drone.scans.length >= 3 || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
+        } else if (drone.scans.length >= 3 || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
             targetX = x;
             targetY = 0;
             message = "Surface"
