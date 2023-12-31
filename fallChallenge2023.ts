@@ -1,4 +1,3 @@
-// Previous ranking: 958
 // * Interfaces *
 interface Vector {
     x: number
@@ -44,6 +43,8 @@ interface Drone {
     battery: number
     scans: number[]
     droneHasBeenToBottom?: boolean
+    wasFleeing?: boolean
+    lastTarget?: Vector
 }
 
 // Les valeurs du radars pour repérés les poissons
@@ -114,8 +115,8 @@ const calcDistance: (vec1: Vector, vec2: Vector) => number = (vec1, vec2) => {
     return Math.round(Math.sqrt(Math.pow(vec1.x - vec2.x, 2) + Math.pow(vec1.y - vec2.y, 2)))
 }
 
-const goToOppositeDirection: (diffX: number, diffY: number) => Vector = (diffX, diffY) => {
-    return { x: diffX > 0 ? 9999 : 0, y: diffY > 0 ? 9999 : 0 }
+const goToOppositeDirection: (diffX: number, diffY: number, altitude: number) => Vector = (diffX, diffY, altitude) => {
+    return { x: diffX > 0 ? 9999 : 0, y: altitude >= 7500 ? 0 : diffY > 0 ? 9999 : 0 }
 }
 
 const getMoveFromRadar: (radar: RadarValue) => number[] = (radar) => {
@@ -146,76 +147,81 @@ for (let i = 0; i < fishCount; i++) {
 }
 
 let droneHasBeenToBottom = false;
+let droneInfo = []
+
+// initialization
+let myScans: number[] = []
+let foeScans: number[] = []
+let droneById = new Map<number, Drone>()
+let myDrones: Drone[] = []
+let foeDrones: Drone[] = []
+let visibleFish: Fish[] = []
+let myRadarBlips = new Map<number, RadarBlip[]>()
+
+let myScore = parseInt(readline())
+let foeScore = parseInt(readline())
+
+let myScanCount = parseInt(readline())
+for (let i = 0; i < myScanCount; i++) {
+    const fishId = parseInt(readline())
+    myScans.push(fishId)
+}
+
+let foeScanCount = parseInt(readline())
+for (let i = 0; i < foeScanCount; i++) {
+    const fishId = parseInt(readline())
+    foeScans.push(fishId)
+}
+
+let myDroneCount = parseInt(readline())
+for (let i = 0; i < myDroneCount; i++) {
+    const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
+    const pos = { x: droneX, y: droneY }
+    const drone = { droneId, pos, dead, battery, scans: [], droneHasBeenToBottom: i === 0 ? false : true, wasFleeing: false, lastTarget: { x: 0, y: 0 } }
+    droneById.set(droneId, drone)
+    myDrones.push(drone)
+    myRadarBlips.set(droneId, [])
+}
+
+let foeDroneCount = parseInt(readline())
+for (let i = 0; i < foeDroneCount; i++) {
+    const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
+    const pos = { x: droneX, y: droneY }
+    const drone = { droneId, pos, dead, battery, scans: [] }
+    droneById.set(droneId, drone)
+    foeDrones.push(drone)
+}
+
+
+let droneScanCount = parseInt(readline())
+for (let i = 0; i < droneScanCount; i++) {
+    const [droneId, fishId] = readline().split(' ').map(Number)
+    droneById.get(droneId)!.scans.push(fishId)
+}
+
+let visibleFishCount = parseInt(readline())
+for (let i = 0; i < visibleFishCount; i++) {
+    const [fishId, fishX, fishY, fishVx, fishVy] = readline().split(' ').map(Number)
+    const pos = { x: fishX, y: fishY }
+    const speed = { x: fishVx, y: fishVy }
+    visibleFish.push({ fishId, pos, speed, detail: fishDetails.get(fishId)! })
+}
+
+let myRadarBlipCount = parseInt(readline())
+for (let i = 0; i < myRadarBlipCount; i++) {
+    const [_droneId, _fishId, dir] = readline().split(' ')
+    const droneId = parseInt(_droneId)
+    const fishId = parseInt(_fishId)
+    if (dir in RadarValue) {
+        myRadarBlips.get(droneId)!.push({ fishId, dir: dir as RadarValue })
+    }
+}
+
+
+
 
 //  * Execution du programme:  game loop *
 while (true) {
-    const myScans: number[] = []
-    const foeScans: number[] = []
-    const droneById = new Map<number, Drone>()
-    const myDrones: Drone[] = []
-    const foeDrones: Drone[] = []
-    const visibleFish: Fish[] = []
-    const myRadarBlips = new Map<number, RadarBlip[]>()
-
-    const myScore = parseInt(readline())
-    const foeScore = parseInt(readline())
-
-    const myScanCount = parseInt(readline())
-    for (let i = 0; i < myScanCount; i++) {
-        const fishId = parseInt(readline())
-        myScans.push(fishId)
-    }
-
-    const foeScanCount = parseInt(readline())
-    for (let i = 0; i < foeScanCount; i++) {
-        const fishId = parseInt(readline())
-        foeScans.push(fishId)
-    }
-
-    const myDroneCount = parseInt(readline())
-    for (let i = 0; i < myDroneCount; i++) {
-        const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
-        const pos = { x: droneX, y: droneY }
-        const drone = { droneId, pos, dead, battery, scans: [], droneHasBeenToBottom: i === 0 ? droneHasBeenToBottom : true }
-        droneById.set(droneId, drone)
-        myDrones.push(drone)
-        myRadarBlips.set(droneId, [])
-    }
-
-    const foeDroneCount = parseInt(readline())
-    for (let i = 0; i < foeDroneCount; i++) {
-        const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
-        const pos = { x: droneX, y: droneY }
-        const drone = { droneId, pos, dead, battery, scans: [] }
-        droneById.set(droneId, drone)
-        foeDrones.push(drone)
-    }
-
-
-    const droneScanCount = parseInt(readline())
-    for (let i = 0; i < droneScanCount; i++) {
-        const [droneId, fishId] = readline().split(' ').map(Number)
-        droneById.get(droneId)!.scans.push(fishId)
-    }
-
-    const visibleFishCount = parseInt(readline())
-    for (let i = 0; i < visibleFishCount; i++) {
-        const [fishId, fishX, fishY, fishVx, fishVy] = readline().split(' ').map(Number)
-        const pos = { x: fishX, y: fishY }
-        const speed = { x: fishVx, y: fishVy }
-        visibleFish.push({ fishId, pos, speed, detail: fishDetails.get(fishId)! })
-    }
-
-    const myRadarBlipCount = parseInt(readline())
-    for (let i = 0; i < myRadarBlipCount; i++) {
-        const [_droneId, _fishId, dir] = readline().split(' ')
-        const droneId = parseInt(_droneId)
-        const fishId = parseInt(_fishId)
-        if (dir in RadarValue) {
-            myRadarBlips.get(droneId)!.push({ fishId, dir: dir as RadarValue })
-        }
-    }
-
     // tous les scans non validés encore
     const scansToValidate = myDrones.reduce((scans, drone) => scans.concat(drone.scans), []);
 
@@ -224,12 +230,13 @@ while (true) {
     const visibleUnscannedFish = visibleFish.filter(fish => fish.detail.type !== FishType.MONSTER && !myScans.includes(fish.fishId) && !scansToValidate.includes(fish.fishId));
     let alreadyPursuedFishes = []; // dans ce tableau on mettra les poissons déjà poursuivis
 
-    for (const drone of myDrones) {
+    for (const droneIndex in myDrones) {
+        const drone = myDrones[droneIndex];
         const x = drone.pos.x
         const y = drone.pos.y
 
         // we want one drone to go to the bottom and back to scan some fishes
-        if (y >= 7500 && !drone.droneHasBeenToBottom) {
+        if (y >= 8500 && !drone.droneHasBeenToBottom) {
             droneHasBeenToBottom = true;
             drone.droneHasBeenToBottom = true;
         }
@@ -252,16 +259,23 @@ while (true) {
         }
 
         // target decision
-        if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 1500) {
-            const target = goToOppositeDirection(drone.pos.x - monstersSortedByClosest[0].pos.x, drone.pos.y - monstersSortedByClosest[0].pos.y);
-            [targetX, targetY] = [target.x, /*target.*/y]; // TODO: check if this avoid strategy is better
+        if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 1800) {
+            const target = goToOppositeDirection(drone.pos.x - monstersSortedByClosest[0].pos.x, drone.pos.y - monstersSortedByClosest[0].pos.y, drone.pos.y);
+            [targetX, targetY] = [target.x, target.y];
             light = 0;
             message = "Faut fuir là ...";
-        } else if (!drone.droneHasBeenToBottom) {
+            myDrones[droneIndex] = { ...myDrones[droneIndex], wasFleeing: true }
+        } else if (drone.wasFleeing) {
+            targetX = drone.lastTarget.x;
+            targetY = drone.lastTarget.y;
+            light = 0;
+            message = "On continue de fuir...";
+            myDrones[droneIndex] = { ...myDrones[droneIndex], wasFleeing: false }
+        } /*else if (!drone.droneHasBeenToBottom) {
             targetX = Math.round(Math.random() * 10000);
             targetY = 10000;
             message = "To Bottom"
-        } else if (drone.scans.length >= 3 || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
+        }*/ else if (drone.scans.length >= 3 || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
             targetX = x;
             targetY = 0;
             message = "Surface"
@@ -278,10 +292,80 @@ while (true) {
 
         // we log the selected move
         if (targetX !== null && targetY !== null && calcDistance({ x: targetX, y: targetY }, drone.pos) > 0) {
+            myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
             console.log(`MOVE ${targetX} ${targetY} ${light} ${drone.droneId} ${message}`)
         } else {
             console.log(`WAIT ${light} ${drone.droneId} ${message}`)
         }
 
     }
+
+    myScans = []
+    foeScans = []
+    droneById = new Map<number, Drone>()
+    foeDrones = []
+    visibleFish = []
+    myRadarBlips = new Map<number, RadarBlip[]>()
+
+    myScore = parseInt(readline())
+    foeScore = parseInt(readline())
+
+    myScanCount = parseInt(readline())
+    for (let i = 0; i < myScanCount; i++) {
+        const fishId = parseInt(readline())
+        myScans.push(fishId)
+    }
+
+    foeScanCount = parseInt(readline())
+    for (let i = 0; i < foeScanCount; i++) {
+        const fishId = parseInt(readline())
+        foeScans.push(fishId)
+    }
+
+    myDroneCount = parseInt(readline())
+    for (let i = 0; i < myDroneCount; i++) {
+        const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
+        const pos = { x: droneX, y: droneY }
+        const previousDroneState = myDrones[i];
+        const drone = { droneId, pos, dead, battery, scans: [], droneHasBeenToBottom: previousDroneState.droneHasBeenToBottom, lastTarget: previousDroneState.lastTarget, wasFleeing: previousDroneState.wasFleeing }
+        droneById.set(droneId, drone)
+        myDrones[i] = drone;
+        myRadarBlips.set(droneId, [])
+    }
+
+    foeDroneCount = parseInt(readline())
+    for (let i = 0; i < foeDroneCount; i++) {
+        const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
+        const pos = { x: droneX, y: droneY }
+        const drone = { droneId, pos, dead, battery, scans: [] }
+        droneById.set(droneId, drone)
+        foeDrones.push(drone)
+    }
+
+
+    droneScanCount = parseInt(readline())
+    for (let i = 0; i < droneScanCount; i++) {
+        const [droneId, fishId] = readline().split(' ').map(Number)
+        droneById.get(droneId)!.scans.push(fishId)
+    }
+
+    visibleFishCount = parseInt(readline())
+    for (let i = 0; i < visibleFishCount; i++) {
+        const [fishId, fishX, fishY, fishVx, fishVy] = readline().split(' ').map(Number)
+        const pos = { x: fishX, y: fishY }
+        const speed = { x: fishVx, y: fishVy }
+        visibleFish.push({ fishId, pos, speed, detail: fishDetails.get(fishId)! })
+    }
+
+    myRadarBlipCount = parseInt(readline())
+    for (let i = 0; i < myRadarBlipCount; i++) {
+        const [_droneId, _fishId, dir] = readline().split(' ')
+        const droneId = parseInt(_droneId)
+        const fishId = parseInt(_fishId)
+        if (dir in RadarValue) {
+            myRadarBlips.get(droneId)!.push({ fishId, dir: dir as RadarValue })
+        }
+    }
+
+
 }
