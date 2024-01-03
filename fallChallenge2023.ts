@@ -1,3 +1,4 @@
+// 815 before new radar strategy
 // * Interfaces *
 interface Vector {
     x: number

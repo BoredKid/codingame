@@ -2,4 +2,4 @@
 
 [ ] Choose when to surface depending on score
 
-[ ] Go to target type 1 then target type 2 depending on altitude
+[X] Go to target type 1 then target type 2 depending on altitude
