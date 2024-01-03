@@ -42,9 +42,9 @@ interface Drone {
     dead: number
     battery: number
     scans: number[]
-    droneHasBeenToBottom?: boolean
     wasFleeing?: boolean
     lastTarget?: Vector
+    numberOfScansToGoUp?: number
 }
 
 // Les valeurs du radars pour repérés les poissons
@@ -146,7 +146,6 @@ for (let i = 0; i < fishCount; i++) {
     if (type === FishType.MONSTER) monsterNumber += 1;
 }
 
-let droneHasBeenToBottom = false;
 let droneInfo = []
 
 // initialization
@@ -177,7 +176,7 @@ let myDroneCount = parseInt(readline())
 for (let i = 0; i < myDroneCount; i++) {
     const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
     const pos = { x: droneX, y: droneY }
-    const drone = { droneId, pos, dead, battery, scans: [], droneHasBeenToBottom: false, wasFleeing: false, lastTarget: { x: 0, y: 0 } }
+    const drone = { droneId, pos, dead, battery, scans: [], wasFleeing: false, lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3 }
     droneById.set(droneId, drone)
     myDrones.push(drone)
     myRadarBlips.set(droneId, [])
@@ -217,8 +216,12 @@ for (let i = 0; i < myRadarBlipCount; i++) {
     }
 }
 
+// TODO: target a monster at the bottom and go directly to see this, we don't take the first radar
+// on target un poisson de type 1 puis un poisson de type 2
+// on remonte en targetant un poisson de type 1 puis type 0
 
-
+// on peut anticiper la position futur du monster pour l'éviter
+// on peut choisir la position qui permet de se rapprocher le plus du fond tout en évitant le monstre
 
 //  * Execution du programme:  game loop *
 while (true) {
@@ -234,12 +237,6 @@ while (true) {
         const drone = myDrones[droneIndex];
         const x = drone.pos.x
         const y = drone.pos.y
-
-        // we want one drone to go to the bottom and back to scan some fishes
-        if (y >= 8500 && !drone.droneHasBeenToBottom) {
-            droneHasBeenToBottom = true;
-            drone.droneHasBeenToBottom = true;
-        }
 
         const monstersSortedByClosest = visibleMonsters.sort((monsterA, monsterB) => calcDistance(drone.pos, monsterA.pos) - calcDistance(drone.pos, monsterB.pos));
         // on enleve les poissons déjà poursuivis par quelqu'un et on les trie par distance par rapport à notre drone
@@ -271,7 +268,7 @@ while (true) {
             light = 0;
             message = "On continue de fuir...";
             myDrones[droneIndex] = { ...myDrones[droneIndex], wasFleeing: false }
-        } else if (drone.scans.length >= 3 || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
+        } else if (drone.scans.length >= drone.numberOfScansToGoUp || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
             targetX = x;
             targetY = 0;
             message = "Surface"
@@ -323,7 +320,7 @@ while (true) {
         const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
         const pos = { x: droneX, y: droneY }
         const previousDroneState = myDrones[i];
-        const drone = { droneId, pos, dead, battery, scans: [], droneHasBeenToBottom: previousDroneState.droneHasBeenToBottom, lastTarget: previousDroneState.lastTarget, wasFleeing: previousDroneState.wasFleeing }
+        const drone = { ...previousDroneState, droneId, pos, dead, battery, scans: [] }
         droneById.set(droneId, drone)
         myDrones[i] = drone;
         myRadarBlips.set(droneId, [])
