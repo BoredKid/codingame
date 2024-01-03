@@ -45,6 +45,7 @@ interface Drone {
     wasFleeing?: boolean
     lastTarget?: Vector
     numberOfScansToGoUp?: number
+    fishTypeTargeted?: FishType | null
 }
 
 // Les valeurs du radars pour repérés les poissons
@@ -134,6 +135,16 @@ const getMoveFromRadar: (radar: RadarValue) => number[] = (radar) => {
     }
 }
 
+const getFishtypeTargeted: (position: Vector, previousFishTypeTargeted: FishType) => FishType | null = (position, previousFishTypeTargeted) => {
+    if (previousFishTypeTargeted !== null) {
+        if (previousFishTypeTargeted === FishType.SHELL && position.y > 8000) return null;
+        else if (previousFishTypeTargeted < FishType.SHELL && position.y > 5000) return FishType.SHELL;
+        else if (previousFishTypeTargeted < FishType.CLASSIC && position.y > 2500) return FishType.CLASSIC;
+        else return previousFishTypeTargeted;
+    }
+    else return previousFishTypeTargeted;
+}
+
 // * Execution du programme: Initialisation *
 
 const fishDetails = new Map<number, FishDetail>()
@@ -176,7 +187,7 @@ let myDroneCount = parseInt(readline())
 for (let i = 0; i < myDroneCount; i++) {
     const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
     const pos = { x: droneX, y: droneY }
-    const drone = { droneId, pos, dead, battery, scans: [], wasFleeing: false, lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3 }
+    const drone: Drone = { droneId, pos, dead, battery, scans: [], wasFleeing: false, lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3, fishTypeTargeted: FishType.OCTOPUS }
     droneById.set(droneId, drone)
     myDrones.push(drone)
     myRadarBlips.set(droneId, [])
@@ -242,7 +253,8 @@ while (true) {
         // on enleve les poissons déjà poursuivis par quelqu'un et on les trie par distance par rapport à notre drone
         const unscannedFishesSortedByClosest = visibleUnscannedFish.filter(fish => !alreadyPursuedFishes.includes(fish.fishId)).sort((fishA, fishB) => calcDistance(drone.pos, fishA.pos) - calcDistance(drone.pos, fishB.pos));
         // we remove already scanned fish and unscanned fishes that are visible from other drones and monsters
-        const radarBlipsWithoutMonster = myRadarBlips.get(drone.droneId)?.filter(blip => !myScans.includes(blip.fishId) && !alreadyPursuedFishes.includes(blip.fishId) && !visibleUnscannedFish.map(fish => fish.fishId).includes(blip.fishId) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER)
+        const radarBlipsWithoutMonsterOfRightType = myRadarBlips.get(drone.droneId)?.filter(blip => !myScans.includes(blip.fishId) && !alreadyPursuedFishes.includes(blip.fishId) && !visibleUnscannedFish.map(fish => fish.fishId).includes(blip.fishId) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER
+            && (drone.fishTypeTargeted === null || fishDetails.get(blip.fishId)?.type === drone.fishTypeTargeted))
 
         let targetX = null;
         let targetY = null;
@@ -268,7 +280,7 @@ while (true) {
             light = 0;
             message = "On continue de fuir...";
             myDrones[droneIndex] = { ...myDrones[droneIndex], wasFleeing: false }
-        } else if (drone.scans.length >= drone.numberOfScansToGoUp || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
+        } else if ((drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
             targetX = x;
             targetY = 0;
             message = "Surface"
@@ -277,10 +289,10 @@ while (true) {
             message = `Hunting ${unscannedFishesSortedByClosest[0].fishId} ${unscannedFishesSortedByClosest[0].pos.x} ${unscannedFishesSortedByClosest[0].pos.y}`
             alreadyPursuedFishes.push(unscannedFishesSortedByClosest[0].fishId);
 
-        } else if (radarBlipsWithoutMonster?.length > 0) {
-            [targetX, targetY] = getMoveFromRadar(radarBlipsWithoutMonster[0].dir)
-            message = `Radar ${radarBlipsWithoutMonster[0].fishId} ${radarBlipsWithoutMonster[0].dir}`
-            alreadyPursuedFishes.push(radarBlipsWithoutMonster[0].fishId);
+        } else if (radarBlipsWithoutMonsterOfRightType?.length > 0) {
+            [targetX, targetY] = getMoveFromRadar(radarBlipsWithoutMonsterOfRightType[0].dir)
+            message = `Radar ${radarBlipsWithoutMonsterOfRightType[0].fishId} ${radarBlipsWithoutMonsterOfRightType[0].dir} Type ${drone.fishTypeTargeted}`
+            alreadyPursuedFishes.push(radarBlipsWithoutMonsterOfRightType[0].fishId);
         }
 
         // we log the selected move
@@ -320,7 +332,7 @@ while (true) {
         const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
         const pos = { x: droneX, y: droneY }
         const previousDroneState = myDrones[i];
-        const drone = { ...previousDroneState, droneId, pos, dead, battery, scans: [] }
+        const drone: Drone = { ...previousDroneState, droneId, pos, dead, battery, scans: [], fishTypeTargeted: getFishtypeTargeted(pos, previousDroneState.fishTypeTargeted) }
         droneById.set(droneId, drone)
         myDrones[i] = drone;
         myRadarBlips.set(droneId, [])
