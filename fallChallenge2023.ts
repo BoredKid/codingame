@@ -1,4 +1,5 @@
-// 815 before new radar strategy
+// * with avoiding strategy with no extra distance
+// 504 with avoiding strategy
 // * Interfaces *
 interface Vector {
     x: number
@@ -146,6 +147,58 @@ const getFishtypeTargeted: (position: Vector, previousFishTypeTargeted: FishType
     else return previousFishTypeTargeted;
 }
 
+const degToRadian: (angleInDeg: number) => number = (angleInDeg) => {
+    return Math.round(angleInDeg * 2 * Math.PI / 360);
+}
+
+const radToDeg: (angleInRad: number) => number = (angleInRad) => {
+    return Math.round(angleInRad * 360 / (2 * Math.PI))
+}
+
+const isInboundPosition: (position: Vector) => boolean = ({ x, y }: Vector) => {
+    if (x < 0 || x > 10000) return false;
+    if (y < 0 || y > 10000) return false;
+    return true;
+}
+
+// fonction pour calculer les potential next positions du drones en fonction de la position des monstres
+const calcNextPositions: (position: Vector, monsters: Fish[]) => Vector[] = (position: Vector, monsters: Fish[]) => {
+    console.error(monsters.length)
+    let potentialNextPositions = [];
+    for (let theta = 0; theta < 360; theta += 5) {
+        const thetaRad = degToRadian(theta);
+        const newPotentialPosition = { x: position.x + Math.round(Math.cos(thetaRad) * SPEED_MAX_DRONE), y: position.y + Math.round(Math.sin(thetaRad) * SPEED_MAX_DRONE) }
+        if (isInboundPosition(newPotentialPosition)) {
+            let isInASafePos = true;
+            for (let monster of monsters) {
+                const presentMonsterPosition = monster.pos;
+                const futurMonsterPosition = { x: monster.pos.x + monster.speed.x, y: monster.pos.y + monster.speed.y }
+                if (calcDistance(newPotentialPosition, presentMonsterPosition) < URGENCE_MODE_DISTANCE + 100 || calcDistance(newPotentialPosition, futurMonsterPosition) < URGENCE_MODE_DISTANCE + 100) {
+                    isInASafePos = false;
+                    break;
+                }
+            }
+            if (isInASafePos) {
+                potentialNextPositions = potentialNextPositions.concat([newPotentialPosition]);
+            }
+        }
+    }
+    return potentialNextPositions;
+}
+
+const findBetterNextPosition: (dronePosition: Vector, potentialNextPositions: Vector[], target: Vector) => Vector = (dronePosition: Vector, potentialNextPositions: Vector[], target: Vector) => {
+    let dmin = 999999;
+    let bestPos = dronePosition;
+    for (let position of potentialNextPositions) {
+        let tempDist = calcDistance(target, position);
+        if (tempDist <= dmin) {
+            dmin = tempDist;
+            bestPos = { ...position };
+        }
+    }
+    return bestPos;
+}
+
 // * Execution du programme: Initialisation *
 
 const fishDetails = new Map<number, FishDetail>()
@@ -259,7 +312,7 @@ while (true) {
 
         let targetX = null;
         let targetY = null;
-        let light = 1;
+        let light = drone.pos.y >= 2500 ? 1 : 0; // no need to activate light too early
         let message = "";
 
 
@@ -269,13 +322,15 @@ while (true) {
         }
 
         // target decision
-        if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 1800) {
+        // TODO: delete following code if new monsters strategy works
+        /*if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 1800) {
             const target = goToOppositeDirection(drone.pos.x - monstersSortedByClosest[0].pos.x, drone.pos.y - monstersSortedByClosest[0].pos.y, drone.pos.y);
             [targetX, targetY] = [target.x, target.y];
             light = 0;
             message = "Faut fuir là ...";
             myDrones[droneIndex] = { ...myDrones[droneIndex], wasFleeing: true }
-        } else if (drone.wasFleeing) {
+        } else*/
+        if (drone.wasFleeing) {
             targetX = drone.lastTarget.x;
             targetY = drone.lastTarget.y;
             light = 0;
@@ -296,10 +351,14 @@ while (true) {
             alreadyPursuedFishes.push(radarBlipsWithoutMonsterOfRightType[0].fishId);
         }
 
+
         // we log the selected move
         if (targetX !== null && targetY !== null && calcDistance({ x: targetX, y: targetY }, drone.pos) > 0) {
+            const potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest);
+            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: targetX, y: targetY });
+            console.error(drone.droneId, x, y);
             myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
-            console.log(`MOVE ${targetX} ${targetY} ${light} ${drone.droneId} ${message}`)
+            console.log(`MOVE ${x} ${y} ${light} ${drone.droneId} ${message}`)
         } else {
             console.log(`WAIT ${light} ${drone.droneId} ${message}`)
         }
