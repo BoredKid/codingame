@@ -145,7 +145,7 @@ const getFishtypeTargeted: (position: Vector, previousFishTypeTargeted: FishType
 }
 
 const degToRadian: (angleInDeg: number) => number = (angleInDeg) => {
-    return Math.round(angleInDeg * 2 * Math.PI / 360);
+    return angleInDeg * 2 * Math.PI / 360;
 }
 
 const radToDeg: (angleInRad: number) => number = (angleInRad) => {
@@ -163,7 +163,7 @@ const calcNextPositions: (position: Vector, monsters: Fish[], safeDistance: numb
     let potentialNextPositions = [];
     for (let theta = 0; theta < 360; theta += 1) {
         const thetaRad = degToRadian(theta);
-        const newPotentialPosition = { x: position.x + Math.round(Math.cos(thetaRad) * SPEED_MAX_DRONE), y: position.y + Math.round(Math.sin(thetaRad) * SPEED_MAX_DRONE) }
+        const newPotentialPosition = { x: position.x + Math.round(Math.cos(thetaRad) * SPEED_MAX_DRONE), y: position.y + Math.round(Math.sin(thetaRad) * SPEED_MAX_DRONE) };
         if (isInboundPosition(newPotentialPosition)) {
             let isInASafePos = true;
             for (let monster of monsters) {
@@ -308,7 +308,7 @@ while (true) {
         let targetX = null;
         let targetY = null;
         let light = drone.pos.y >= 2500 ? 1 : 0; // no need to activate light too early
-        let message = "";
+        let message = "Nothing to do so ... Surface";
 
         // target decision
         if ((drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
@@ -325,18 +325,28 @@ while (true) {
 
         // we log the selected move
         if (targetX !== null && targetY !== null && calcDistance({ x: targetX, y: targetY }, drone.pos) > 0) {
-            let potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 150, moveSpeed);
+            let potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 150);
             if (potentialNextPositions.length < 1) {
-                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 100, moveSpeed);
+                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 100);
             }
             if (potentialNextPositions.length < 1) {
-                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50, moveSpeed);
+                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50);
             }
             const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: targetX, y: targetY },);
             myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
             console.log(`MOVE ${x} ${y} ${light} ${drone.droneId} ${message}`)
         } else {
-            console.log(`WAIT ${light} ${drone.droneId} ${message}`)
+            // if no specific target then go to surface since we don't have nothing to do
+            let potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 150);
+            if (potentialNextPositions.length < 1) {
+                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 100);
+            }
+            if (potentialNextPositions.length < 1) {
+                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50);
+            }
+            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: drone.pos.x, y: 0 },);
+            myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
+            console.log(`MOVE ${x} ${y} ${light} ${drone.droneId} ${message}`)
         }
 
     }
