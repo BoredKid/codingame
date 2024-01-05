@@ -8,6 +8,8 @@
 
 [ ] ameliorer `alreadyPursuedFish` strategy so the closest drone can go to it and also if one fish left go to the fish with both anyway
 
+[ ] determine a range position for each fish depending of blips from drones
+
 [X] if battery is charged light up and speed max else reduce speed with light down -> finalement pas ouf
 
 [X] should we really switch off light when chased by monsters ?
