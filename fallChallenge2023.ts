@@ -159,7 +159,7 @@ const isInboundPosition: (position: Vector) => boolean = ({ x, y }: Vector) => {
 }
 
 // fonction pour calculer les potential next positions du drones en fonction de la position des monstres
-const calcNextPositions: (position: Vector, monsters: Fish[]) => Vector[] = (position: Vector, monsters: Fish[]) => {
+const calcNextPositions: (position: Vector, monsters: Fish[], safeDistance: number) => Vector[] = (position: Vector, monsters: Fish[], safeDistance: number) => {
     let potentialNextPositions = [];
     for (let theta = 0; theta < 360; theta += 1) {
         const thetaRad = degToRadian(theta);
@@ -169,7 +169,7 @@ const calcNextPositions: (position: Vector, monsters: Fish[]) => Vector[] = (pos
             for (let monster of monsters) {
                 const presentMonsterPosition = monster.pos;
                 const futurMonsterPosition = { x: monster.pos.x + monster.speed.x, y: monster.pos.y + monster.speed.y }
-                if (calcDistance(newPotentialPosition, presentMonsterPosition) < URGENCE_MODE_DISTANCE + 100 || calcDistance(newPotentialPosition, futurMonsterPosition) < URGENCE_MODE_DISTANCE + 100) {
+                if (calcDistance(newPotentialPosition, presentMonsterPosition) < URGENCE_MODE_DISTANCE + safeDistance || calcDistance(newPotentialPosition, futurMonsterPosition) < URGENCE_MODE_DISTANCE + safeDistance) {
                     isInASafePos = false;
                     break;
                 }
@@ -325,8 +325,11 @@ while (true) {
 
         // we log the selected move
         if (targetX !== null && targetY !== null && calcDistance({ x: targetX, y: targetY }, drone.pos) > 0) {
-            const potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest);
-            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: targetX, y: targetY });
+            let potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 100);
+            if (potentialNextPositions.length < 1) {
+                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50);
+            }
+            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: targetX, y: targetY },);
             myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
             console.log(`MOVE ${x} ${y} ${light} ${drone.droneId} ${message}`)
         } else {
