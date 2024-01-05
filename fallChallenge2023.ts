@@ -268,7 +268,8 @@ for (let i = 0; i < visibleFishCount; i++) {
     visibleFish.push({ fishId, pos, speed, detail: fishDetails.get(fishId)! })
 }
 
-let myRadarBlipCount = parseInt(readline())
+let myRadarBlipCount = parseInt(readline());
+let fishesStillInGame = {};
 for (let i = 0; i < myRadarBlipCount; i++) {
     const [_droneId, _fishId, dir] = readline().split(' ')
     const droneId = parseInt(_droneId)
@@ -276,12 +277,18 @@ for (let i = 0; i < myRadarBlipCount; i++) {
     if (dir in RadarValue) {
         myRadarBlips.get(droneId)!.push({ fishId, dir: dir as RadarValue })
     }
+    fishesStillInGame[fishId] = true;
 }
+
 
 //  * Execution du programme:  game loop *
 while (true) {
     // tous les scans non validés encore
     const scansToValidate = myDrones.reduce((scans, drone) => scans.concat(drone.scans), []);
+
+    // we need to know if there are still fishes to scan while taking into account the fact that fishes leave the map
+    const scannedFishesStillInGame = Object.keys(fishesStillInGame).filter(fishId => myScans.includes(parseInt(fishId)) || scansToValidate.includes(parseInt(fishId)));
+    const creaturesLeftToScan = Object.keys(fishesStillInGame).length - (scannedFishesStillInGame.length + monsterNumber);
 
     const visibleMonsters = visibleFish.filter((fish => fish.detail.type === FishType.MONSTER));
     // on enleve des poissons visibles tous les monstres et les poissons déjà scannés (validés ou pas)
@@ -305,10 +312,8 @@ while (true) {
         let light = drone.pos.y >= 2500 ? 1 : 0; // no need to activate light too early
         let message = "";
 
-
-
         // target decision
-        if ((drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
+        if ((drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
             targetX = x;
             targetY = 0;
             message = "Surface"
@@ -394,6 +399,7 @@ while (true) {
     }
 
     myRadarBlipCount = parseInt(readline())
+    fishesStillInGame = {};
     for (let i = 0; i < myRadarBlipCount; i++) {
         const [_droneId, _fishId, dir] = readline().split(' ')
         const droneId = parseInt(_droneId)
@@ -401,6 +407,7 @@ while (true) {
         if (dir in RadarValue) {
             myRadarBlips.get(droneId)!.push({ fishId, dir: dir as RadarValue })
         }
+        fishesStillInGame[fishId] = true;
     }
 
 
