@@ -4,11 +4,9 @@
 
 [ ] Make the drone split at the beginning so they don't chase the same fish
 
-[ ] Reessayer stratégie où deux drones ne chassent jamais le meme poisson
+[X] Reessayer stratégie où deux drones ne chassent jamais le meme poisson sauf si il n'en reste qu'un
 
-[ ] Changer priorité: si il y a un poisson visible on le scan meme si on remonte à la surface par le drone pas loin
-
-[ ] ameliorer `alreadyPursedFish` strategy so the closest drone can go to it and also if one fish left go to the fish with both anyway
+[ ] ameliorer `alreadyPursuedFish` strategy so the closest drone can go to it and also if one fish left go to the fish with both anyway
 
 [X] if battery is charged light up and speed max else reduce speed with light down -> finalement pas ouf
 
