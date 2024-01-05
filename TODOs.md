@@ -6,6 +6,10 @@
 
 [ ] Reessayer stratégie où deux drones ne chassent jamais le meme poisson
 
+[ ] Changer priorité: si il y a un poisson visible on le scan meme si on remonte à la surface par le drone pas loin
+
+[ ] ameliorer `alreadyPursedFish` strategy so the closest drone can go to it and also if one fish left go to the fish with both anyway
+
 [X] should we really switch off light when chased by monsters ?
 
 [X] review end of this game why it doesn't go up ? https://www.codingame.com/replay/760605045
