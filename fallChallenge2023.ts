@@ -1,5 +1,3 @@
-// * with avoiding strategy with no extra distance
-// 504 with avoiding strategy
 // * Interfaces *
 interface Vector {
     x: number
@@ -44,7 +42,6 @@ interface Drone {
     dead: number
     battery: number
     scans: number[]
-    wasFleeing?: boolean
     lastTarget?: Vector
     numberOfScansToGoUp?: number
     fishTypeTargeted?: FishType | null
@@ -163,9 +160,8 @@ const isInboundPosition: (position: Vector) => boolean = ({ x, y }: Vector) => {
 
 // fonction pour calculer les potential next positions du drones en fonction de la position des monstres
 const calcNextPositions: (position: Vector, monsters: Fish[]) => Vector[] = (position: Vector, monsters: Fish[]) => {
-    console.error(monsters.length)
     let potentialNextPositions = [];
-    for (let theta = 0; theta < 360; theta += 5) {
+    for (let theta = 0; theta < 360; theta += 1) {
         const thetaRad = degToRadian(theta);
         const newPotentialPosition = { x: position.x + Math.round(Math.cos(thetaRad) * SPEED_MAX_DRONE), y: position.y + Math.round(Math.sin(thetaRad) * SPEED_MAX_DRONE) }
         if (isInboundPosition(newPotentialPosition)) {
@@ -186,6 +182,7 @@ const calcNextPositions: (position: Vector, monsters: Fish[]) => Vector[] = (pos
     return potentialNextPositions;
 }
 
+// find closest available position to target
 const findBetterNextPosition: (dronePosition: Vector, potentialNextPositions: Vector[], target: Vector) => Vector = (dronePosition: Vector, potentialNextPositions: Vector[], target: Vector) => {
     let dmin = 999999;
     let bestPos = dronePosition;
@@ -241,7 +238,7 @@ let myDroneCount = parseInt(readline())
 for (let i = 0; i < myDroneCount; i++) {
     const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
     const pos = { x: droneX, y: droneY }
-    const drone: Drone = { droneId, pos, dead, battery, scans: [], wasFleeing: false, lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3, fishTypeTargeted: FishType.OCTOPUS }
+    const drone: Drone = { droneId, pos, dead, battery, scans: [], lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3, fishTypeTargeted: FishType.OCTOPUS }
     droneById.set(droneId, drone)
     myDrones.push(drone)
     myRadarBlips.set(droneId, [])
@@ -281,13 +278,6 @@ for (let i = 0; i < myRadarBlipCount; i++) {
     }
 }
 
-// TODO: target a monster at the bottom and go directly to see this, we don't take the first radar
-// on target un poisson de type 1 puis un poisson de type 2
-// on remonte en targetant un poisson de type 1 puis type 0
-
-// on peut anticiper la position futur du monster pour l'éviter
-// on peut choisir la position qui permet de se rapprocher le plus du fond tout en évitant le monstre
-
 //  * Execution du programme:  game loop *
 while (true) {
     // tous les scans non validés encore
@@ -316,27 +306,9 @@ while (true) {
         let message = "";
 
 
-        // light decision
-        if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 2000) {
-            light = 0;
-        }
 
         // target decision
-        // TODO: delete following code if new monsters strategy works
-        /*if (monstersSortedByClosest.length > 0 && calcDistance(drone.pos, monstersSortedByClosest[0].pos) <= 1800) {
-            const target = goToOppositeDirection(drone.pos.x - monstersSortedByClosest[0].pos.x, drone.pos.y - monstersSortedByClosest[0].pos.y, drone.pos.y);
-            [targetX, targetY] = [target.x, target.y];
-            light = 0;
-            message = "Faut fuir là ...";
-            myDrones[droneIndex] = { ...myDrones[droneIndex], wasFleeing: true }
-        } else*/
-        if (drone.wasFleeing) {
-            targetX = drone.lastTarget.x;
-            targetY = drone.lastTarget.y;
-            light = 0;
-            message = "On continue de fuir...";
-            myDrones[droneIndex] = { ...myDrones[droneIndex], wasFleeing: false }
-        } else if ((drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
+        if ((drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || (scansToValidate.length >= visibleFishCount + Math.round(myRadarBlipCount / myDrones.length) - monsterNumber)) {
             targetX = x;
             targetY = 0;
             message = "Surface"
@@ -356,7 +328,6 @@ while (true) {
         if (targetX !== null && targetY !== null && calcDistance({ x: targetX, y: targetY }, drone.pos) > 0) {
             const potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest);
             const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: targetX, y: targetY });
-            console.error(drone.droneId, x, y);
             myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
             console.log(`MOVE ${x} ${y} ${light} ${drone.droneId} ${message}`)
         } else {
