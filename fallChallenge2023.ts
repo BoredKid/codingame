@@ -301,8 +301,6 @@ while (true) {
         const y = drone.pos.y
 
         const monstersSortedByClosest = visibleMonsters.sort((monsterA, monsterB) => calcDistance(drone.pos, monsterA.pos) - calcDistance(drone.pos, monsterB.pos));
-        // on enleve les poissons déjà poursuivis par quelqu'un et on les trie par distance par rapport à notre drone
-        const unscannedFishesSortedByClosest = visibleUnscannedFish.filter(fish => !alreadyPursuedFishes.includes(fish.fishId)).sort((fishA, fishB) => calcDistance(drone.pos, fishA.pos) - calcDistance(drone.pos, fishB.pos));
         // we remove already scanned fish and unscanned fishes that are visible from other drones and monsters
         const radarBlipsWithoutMonsterOfRightType = myRadarBlips.get(drone.droneId)?.filter(blip => !myScans.includes(blip.fishId) && !alreadyPursuedFishes.includes(blip.fishId) && !visibleUnscannedFish.map(fish => fish.fishId).includes(blip.fishId) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER
             && (drone.fishTypeTargeted === null || fishDetails.get(blip.fishId)?.type === drone.fishTypeTargeted))
@@ -317,12 +315,8 @@ while (true) {
             targetX = x;
             targetY = 0;
             message = "Surface"
-        } else if (unscannedFishesSortedByClosest.length > 0) {
-            [targetX, targetY] = [unscannedFishesSortedByClosest[0].pos.x, unscannedFishesSortedByClosest[0].pos.y]
-            message = `Hunting ${unscannedFishesSortedByClosest[0].fishId} ${unscannedFishesSortedByClosest[0].pos.x} ${unscannedFishesSortedByClosest[0].pos.y}`
-            alreadyPursuedFishes.push(unscannedFishesSortedByClosest[0].fishId);
-
-        } else if (radarBlipsWithoutMonsterOfRightType?.length > 0) {
+        }
+        else if (radarBlipsWithoutMonsterOfRightType?.length > 0) {
             [targetX, targetY] = getMoveFromRadar(radarBlipsWithoutMonsterOfRightType[0].dir)
             message = `Radar ${radarBlipsWithoutMonsterOfRightType[0].fishId} ${radarBlipsWithoutMonsterOfRightType[0].dir} Type ${drone.fishTypeTargeted}`
             alreadyPursuedFishes.push(radarBlipsWithoutMonsterOfRightType[0].fishId);
