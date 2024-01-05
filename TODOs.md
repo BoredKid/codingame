@@ -4,6 +4,8 @@
 
 [ ] Make the drone split at the beginning so they don't chase the same drones
 
+[ ] Reessayer stratégie où deux drones ne chassent jamais le meme poisson
+
 [X] should we really switch off light when chased by monsters ?
 
 [X] review end of this game why it doesn't go up ? https://www.codingame.com/replay/760605045
