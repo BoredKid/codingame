@@ -325,9 +325,12 @@ while (true) {
 
         // we log the selected move
         if (targetX !== null && targetY !== null && calcDistance({ x: targetX, y: targetY }, drone.pos) > 0) {
-            let potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 100);
+            let potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 150, moveSpeed);
             if (potentialNextPositions.length < 1) {
-                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50);
+                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 100, moveSpeed);
+            }
+            if (potentialNextPositions.length < 1) {
+                potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50, moveSpeed);
             }
             const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: targetX, y: targetY },);
             myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
