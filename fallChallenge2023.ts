@@ -359,9 +359,12 @@ while (true) {
 
         const monstersSortedByClosest = visibleMonsters.sort((monsterA, monsterB) => calcDistance(drone.pos, monsterA.pos) - calcDistance(drone.pos, monsterB.pos));
         // we remove already scanned fish and unscanned fishes that are visible from other drones and monsters
-        const radarBlipsWithoutMonsterOfRightType = fishesApproxPositions.filter(blip => !myScans.includes(blip.fishId) && (creaturesLeftToScan <= 1 || !alreadyPursuedFishes.includes(blip.fishId)) && !visibleUnscannedFish.map(fish => fish.fishId).includes(blip.fishId) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER
+        let radarBlipsWithoutMonsterOfRightType = fishesApproxPositions.filter(blip => !myScans.includes(blip.fishId) && !scansToValidate.includes(blip.fishId) && (creaturesLeftToScan <= 1 || !alreadyPursuedFishes.includes(blip.fishId)) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER
             && (drone.fishTypeTargeted === null || fishDetails.get(blip.fishId)?.type === drone.fishTypeTargeted)).sort((fishA, fishB) => calcDistance(drone.pos, fishA.approximatePosition) - calcDistance(drone.pos, fishB.approximatePosition));
 
+        if (radarBlipsWithoutMonsterOfRightType.length === 0) {
+            radarBlipsWithoutMonsterOfRightType = fishesApproxPositions.filter(blip => !myScans.includes(blip.fishId) && !scansToValidate.includes(blip.fishId) && (creaturesLeftToScan <= 1 || !alreadyPursuedFishes.includes(blip.fishId)) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER).sort((fishA, fishB) => calcDistance(drone.pos, fishA.approximatePosition) - calcDistance(drone.pos, fishB.approximatePosition));
+        }
         let targetX = null;
         let targetY = null;
         let light = drone.pos.y >= 2500 ? 1 : 0; // no need to activate light too early
