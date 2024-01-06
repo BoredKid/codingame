@@ -134,6 +134,46 @@ const getMoveFromRadar: (radar: RadarValue) => number[] = (radar) => {
     }
 }
 
+const getVerticalMoveFromRadar: (vRadar1: string, vRadar2: string, y1: number, y2: number) => number = (vRadar1: string, vRadar2: string, y1: number, y2: number) => {
+    if (vRadar1 === "T") {
+        if (vRadar2 === "T") {
+            return 0;
+        } else {
+            return Math.round((y1 + y2) / 2)
+        }
+    } else {
+        if (vRadar2 === "T") {
+            return Math.round((y1 + y2) / 2)
+        } else {
+            return 9999;
+        }
+
+    }
+}
+
+const getHorizontalMoveFromRadar: (hRadar1: string, hRadar2: string, x1: number, x2: number) => number = (hRadar1: string, hRadar2: string, x1: number, x2: number) => {
+    if (hRadar1 === "L") {
+        if (hRadar2 === "L") {
+            return 0;
+        } else {
+            return Math.round((x1 + x2) / 2)
+        }
+    } else {
+        if (hRadar2 === "L") {
+            return Math.round((x1 + x2) / 2)
+        } else {
+            return 9999;
+        }
+
+    }
+}
+
+const getApproximatePositionFromRadarBlip: (drone1Pos: Vector, drone1RadarBlip: RadarValue, drone2Pos: Vector, drone2RadarBlip: RadarValue) => Vector = (drone1Pos: Vector, drone1RadarBlip: RadarValue, drone2Pos: Vector, drone2RadarBlip: RadarValue) => {
+    const [verticalDrone1, horizontalDrone1] = drone1RadarBlip.split("");
+    const [verticalDrone2, horizontalDrone2] = drone2RadarBlip.split("");
+    return { x: getHorizontalMoveFromRadar(horizontalDrone1, horizontalDrone2, drone1Pos.x, drone2Pos.x), y: getVerticalMoveFromRadar(verticalDrone1, verticalDrone2, drone1Pos.y, drone2Pos.x) }
+}
+
 const getFishtypeTargeted: (position: Vector, previousFishTypeTargeted: FishType) => FishType | null = (position, previousFishTypeTargeted) => {
     if (previousFishTypeTargeted !== null) {
         if (previousFishTypeTargeted === FishType.SHELL && position.y > 8000) return null;
@@ -270,6 +310,7 @@ for (let i = 0; i < visibleFishCount; i++) {
 
 let myRadarBlipCount = parseInt(readline());
 let fishesStillInGame = {};
+let fishesRadar = {}
 for (let i = 0; i < myRadarBlipCount; i++) {
     const [_droneId, _fishId, dir] = readline().split(' ')
     const droneId = parseInt(_droneId)
@@ -278,7 +319,23 @@ for (let i = 0; i < myRadarBlipCount; i++) {
         myRadarBlips.get(droneId)!.push({ fishId, dir: dir as RadarValue })
     }
     fishesStillInGame[fishId] = true;
+    fishesRadar = {
+        ...fishesRadar, [fishId]: (fishesRadar[fishId] ? { ...fishesRadar[fishId], [droneId]: dir } : { [droneId]: dir })
+    }
 }
+
+let fishesApproxPositions = Object.keys(fishesRadar).map((fishId) => {
+    return {
+        fishId: parseInt(fishId),
+        approximatePosition: getApproximatePositionFromRadarBlip(
+            myDrones[0].pos,
+            fishesRadar[fishId][myDrones[0].droneId],
+            myDrones[1].pos,
+            fishesRadar[fishId][myDrones[1].droneId]
+        )
+    }
+})
+
 
 
 //  * Execution du programme:  game loop *
@@ -302,8 +359,8 @@ while (true) {
 
         const monstersSortedByClosest = visibleMonsters.sort((monsterA, monsterB) => calcDistance(drone.pos, monsterA.pos) - calcDistance(drone.pos, monsterB.pos));
         // we remove already scanned fish and unscanned fishes that are visible from other drones and monsters
-        const radarBlipsWithoutMonsterOfRightType = myRadarBlips.get(drone.droneId)?.filter(blip => !myScans.includes(blip.fishId) && (creaturesLeftToScan <= 1 || !alreadyPursuedFishes.includes(blip.fishId)) && !visibleUnscannedFish.map(fish => fish.fishId).includes(blip.fishId) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER
-            && (drone.fishTypeTargeted === null || fishDetails.get(blip.fishId)?.type === drone.fishTypeTargeted))
+        const radarBlipsWithoutMonsterOfRightType = fishesApproxPositions.filter(blip => !myScans.includes(blip.fishId) && (creaturesLeftToScan <= 1 || !alreadyPursuedFishes.includes(blip.fishId)) && !visibleUnscannedFish.map(fish => fish.fishId).includes(blip.fishId) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER
+            && (drone.fishTypeTargeted === null || fishDetails.get(blip.fishId)?.type === drone.fishTypeTargeted)).sort((fishA, fishB) => calcDistance(drone.pos, fishA.approximatePosition) - calcDistance(drone.pos, fishB.approximatePosition));
 
         let targetX = null;
         let targetY = null;
@@ -311,14 +368,15 @@ while (true) {
         let message = "Nothing to do so ... Surface";
 
         // target decision
-        if ((drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
+        if ((drone.scans.length > 0 && drone.pos.y <= 1250) || (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
             targetX = x;
             targetY = 0;
             message = "Surface"
         }
         else if (radarBlipsWithoutMonsterOfRightType?.length > 0) {
-            [targetX, targetY] = getMoveFromRadar(radarBlipsWithoutMonsterOfRightType[0].dir)
-            message = `Radar ${radarBlipsWithoutMonsterOfRightType[0].fishId} ${radarBlipsWithoutMonsterOfRightType[0].dir} Type ${drone.fishTypeTargeted}`
+            let { x, y } = radarBlipsWithoutMonsterOfRightType[0].approximatePosition;
+            [targetX, targetY] = [x, y];
+            message = `Radar ${radarBlipsWithoutMonsterOfRightType[0].fishId} ${fishesRadar[radarBlipsWithoutMonsterOfRightType[0].fishId][drone.droneId]} Type ${drone.fishTypeTargeted}`
             alreadyPursuedFishes.push(radarBlipsWithoutMonsterOfRightType[0].fishId);
         }
 
@@ -410,6 +468,7 @@ while (true) {
 
     myRadarBlipCount = parseInt(readline())
     fishesStillInGame = {};
+    fishesRadar = {}
     for (let i = 0; i < myRadarBlipCount; i++) {
         const [_droneId, _fishId, dir] = readline().split(' ')
         const droneId = parseInt(_droneId)
@@ -418,7 +477,21 @@ while (true) {
             myRadarBlips.get(droneId)!.push({ fishId, dir: dir as RadarValue })
         }
         fishesStillInGame[fishId] = true;
+        fishesRadar = {
+            ...fishesRadar, [fishId]: (fishesRadar[fishId] ? { ...fishesRadar[fishId], [droneId]: dir } : { [droneId]: dir })
+        }
     }
 
+    fishesApproxPositions = Object.keys(fishesRadar).map((fishId) => {
+        return {
+            fishId: parseInt(fishId),
+            approximatePosition: getApproximatePositionFromRadarBlip(
+                myDrones[0].pos,
+                fishesRadar[fishId][myDrones[0].droneId],
+                myDrones[1].pos,
+                fishesRadar[fishId][myDrones[1].droneId]
+            )
+        }
+    })
 
 }

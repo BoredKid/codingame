@@ -8,7 +8,9 @@
 
 [ ] ameliorer `alreadyPursuedFish` strategy so the closest drone can go to it and also if one fish left go to the fish with both anyway
 
-[ ] determine a range position for each fish depending of blips from drones
+[X] determine a range position for each fish depending of blips from drones
+
+[ ] use type of fish to determine altitude position more precisely
 
 [X] if battery is charged light up and speed max else reduce speed with light down -> finalement pas ouf
 
