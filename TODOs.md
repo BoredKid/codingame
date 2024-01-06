@@ -6,7 +6,7 @@
 
 [X] Reessayer stratégie où deux drones ne chassent jamais le meme poisson sauf si il n'en reste qu'un
 
-[ ] ameliorer `alreadyPursuedFish` strategy so the closest drone can go to it and also if one fish left go to the fish with both anyway
+[X] ameliorer `alreadyPursuedFish` strategy so the closest drone can go to it and also if one fish left go to the fish with both anyway
 
 [X] determine a range position for each fish depending of blips from drones
 
