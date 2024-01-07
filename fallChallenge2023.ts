@@ -162,7 +162,7 @@ const getApproximatePositionFromRadarBlip: (drone1Pos: Vector, drone1RadarBlip: 
 
 const getFishtypeTargeted: (position: Vector, previousFishTypeTargeted: FishType, droneIndex: number) => FishType | null = (position, previousFishTypeTargeted, droneIndex) => {
     if (previousFishTypeTargeted !== null) {
-        if (previousFishTypeTargeted === FishType.SHELL && ((droneIndex % 2 === 0 && position.y > 8000) || (droneIndex % 2 === 1 && position.y > 8000))) return null;
+        if (previousFishTypeTargeted === FishType.SHELL && ((droneIndex % 2 === 0 && position.y > 7500) || (droneIndex % 2 === 1 && position.y > 7500))) return null;
         else if (previousFishTypeTargeted < FishType.SHELL && position.y > 5000) return FishType.SHELL;
         else if (previousFishTypeTargeted < FishType.CLASSIC && position.y > 2500) return FishType.CLASSIC;
         else return previousFishTypeTargeted;
@@ -180,7 +180,7 @@ const radToDeg: (angleInRad: number) => number = (angleInRad) => {
 
 const isInboundPosition: (position: Vector) => boolean = ({ x, y }: Vector) => {
     if (x < 0 || x > 10000) return false;
-    if (y < 0 || y > 10000) return false;
+    if (y < 0 || y > 9500) return false;
     return true;
 }
 
@@ -264,7 +264,7 @@ let myDroneCount = parseInt(readline())
 for (let i = 0; i < myDroneCount; i++) {
     const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
     const pos = { x: droneX, y: droneY }
-    const drone: Drone = { droneId, pos, dead, battery, scans: [], lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 3 : 4, fishTypeTargeted: FishType.OCTOPUS, xRestPosition: droneX }
+    const drone: Drone = { droneId, pos, dead, battery, scans: [], lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3, fishTypeTargeted: FishType.OCTOPUS, xRestPosition: droneX }
     droneById.set(droneId, drone)
     myDrones.push(drone)
     myRadarBlips.set(droneId, [])
@@ -361,7 +361,12 @@ while (true) {
 
 
         // target decision
-        if ((drone.scans.length > 0 && drone.pos.y <= 1250) || (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
+        if (creaturesLeftToValidate <= 0) {
+            targetX = Math.round(Math.random() * 10000);
+            targetY = Math.round(Math.random() * 10000);
+            message = "OUIIIIIIIIIII"
+        }
+        else if ((drone.scans.length > 0 && drone.pos.y <= 1250) || (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
             targetX = drone.xRestPosition;
             targetY = 0;
             message = "Surface"
@@ -371,10 +376,6 @@ while (true) {
             [targetX, targetY] = [x, y];
             message = `Radar ${radarBlipsWithoutMonsterOfRightType[0].fishId} ${fishesRadar[radarBlipsWithoutMonsterOfRightType[0].fishId][drone.droneId]} Type ${drone.fishTypeTargeted}`
             alreadyPursuedFishes.push(radarBlipsWithoutMonsterOfRightType[0].fishId);
-        } else if (creaturesLeftToValidate <= 0) {
-            targetX = Math.round(Math.random() * 10000);
-            targetY = Math.round(Math.random() * 10000);
-            message = "OUIIIIIIIIIII"
         }
 
 
