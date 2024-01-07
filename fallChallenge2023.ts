@@ -353,7 +353,7 @@ while (true) {
         }
         let targetX = null;
         let targetY = null;
-        let light = drone.pos.y >= 2500 ? 1 : 0; // no need to activate light too early
+        let light = drone.pos.y >= 2500 && turn % 2 === 0 ? 1 : 0; // no need to activate light too early
         let message = "Nothing to do so ... Surface";
 
 
