@@ -160,9 +160,9 @@ const getApproximatePositionFromRadarBlip: (drone1Pos: Vector, drone1RadarBlip: 
     return { x: getHorizontalMoveFromRadar(horizontalDrone1, horizontalDrone2, drone1Pos.x, drone2Pos.x), y: getVerticalMoveFromRadar(verticalDrone1, verticalDrone2, drone1Pos.y, drone2Pos.x) }
 }
 
-const getFishtypeTargeted: (position: Vector, previousFishTypeTargeted: FishType) => FishType | null = (position, previousFishTypeTargeted) => {
+const getFishtypeTargeted: (position: Vector, previousFishTypeTargeted: FishType, droneIndex: number) => FishType | null = (position, previousFishTypeTargeted, droneIndex) => {
     if (previousFishTypeTargeted !== null) {
-        if (previousFishTypeTargeted === FishType.SHELL && position.y > 8000) return null;
+        if (previousFishTypeTargeted === FishType.SHELL && ((droneIndex % 2 === 0 && position.y > 8000) || (droneIndex % 2 === 1 && position.y > 8000))) return null;
         else if (previousFishTypeTargeted < FishType.SHELL && position.y > 5000) return FishType.SHELL;
         else if (previousFishTypeTargeted < FishType.CLASSIC && position.y > 2500) return FishType.CLASSIC;
         else return previousFishTypeTargeted;
@@ -264,7 +264,7 @@ let myDroneCount = parseInt(readline())
 for (let i = 0; i < myDroneCount; i++) {
     const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
     const pos = { x: droneX, y: droneY }
-    const drone: Drone = { droneId, pos, dead, battery, scans: [], lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3, fishTypeTargeted: FishType.OCTOPUS, xRestPosition: droneX }
+    const drone: Drone = { droneId, pos, dead, battery, scans: [], lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 3 : 4, fishTypeTargeted: FishType.OCTOPUS, xRestPosition: droneX }
     droneById.set(droneId, drone)
     myDrones.push(drone)
     myRadarBlips.set(droneId, [])
@@ -332,6 +332,9 @@ while (true) {
     // we need to know if there are still fishes to scan while taking into account the fact that fishes leave the map
     const scannedFishesStillInGame = Object.keys(fishesStillInGame).filter(fishId => myScans.includes(parseInt(fishId)) || scansToValidate.includes(parseInt(fishId)));
     const creaturesLeftToScan = Object.keys(fishesStillInGame).length - (scannedFishesStillInGame.length + monsterNumber);
+    // if all creatures are validated then go random to chase fishes out of the map
+    const validatedFishesStillInGame = Object.keys(fishesStillInGame).filter(fishId => myScans.includes(parseInt(fishId)));
+    const creaturesLeftToValidate = Object.keys(fishesStillInGame).length - (validatedFishesStillInGame.length + monsterNumber);
 
     const visibleMonsters = visibleFish.filter((fish => fish.detail.type === FishType.MONSTER));
     // on enleve des poissons visibles tous les monstres et les poissons déjà scannés (validés ou pas)
@@ -353,12 +356,12 @@ while (true) {
         }
         let targetX = null;
         let targetY = null;
-        let light = drone.pos.y >= 2500 && turn % 2 === 0 ? 1 : 0; // no need to activate light too early
+        let light = drone.pos.y >= 2500 && ((turn % 2 === 0 && parseInt(droneIndex) % 2 === 0) || (turn % 2 === 1 && parseInt(droneIndex) % 2 === 1)) ? 1 : 0; // no need to activate light too early
         let message = "Nothing to do so ... Surface";
 
 
         // target decision
-        if ((drone.scans.length > 0 && drone.pos.y <= 1250) || /* (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) ||*/ creaturesLeftToScan <= 0) {
+        if ((drone.scans.length > 0 && drone.pos.y <= 1250) || (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
             targetX = drone.xRestPosition;
             targetY = 0;
             message = "Surface"
@@ -368,6 +371,10 @@ while (true) {
             [targetX, targetY] = [x, y];
             message = `Radar ${radarBlipsWithoutMonsterOfRightType[0].fishId} ${fishesRadar[radarBlipsWithoutMonsterOfRightType[0].fishId][drone.droneId]} Type ${drone.fishTypeTargeted}`
             alreadyPursuedFishes.push(radarBlipsWithoutMonsterOfRightType[0].fishId);
+        } else if (creaturesLeftToValidate <= 0) {
+            targetX = Math.round(Math.random() * 10000);
+            targetY = Math.round(Math.random() * 10000);
+            message = "OUIIIIIIIIIII"
         }
 
 
@@ -426,7 +433,7 @@ while (true) {
         const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
         const pos = { x: droneX, y: droneY }
         const previousDroneState = myDrones[i];
-        const drone: Drone = { ...previousDroneState, droneId, pos, dead, battery, scans: [], fishTypeTargeted: getFishtypeTargeted(pos, previousDroneState.fishTypeTargeted) }
+        const drone: Drone = { ...previousDroneState, droneId, pos, dead, battery, scans: [], fishTypeTargeted: getFishtypeTargeted(pos, previousDroneState.fishTypeTargeted, i) }
         droneById.set(droneId, drone)
         myDrones[i] = drone;
         myRadarBlips.set(droneId, [])
