@@ -162,7 +162,7 @@ const getApproximatePositionFromRadarBlip: (drone1Pos: Vector, drone1RadarBlip: 
 
 const getFishtypeTargeted: (position: Vector, previousFishTypeTargeted: FishType, droneIndex: number) => FishType | null = (position, previousFishTypeTargeted, droneIndex) => {
     if (previousFishTypeTargeted !== null) {
-        if (previousFishTypeTargeted === FishType.SHELL && ((droneIndex % 2 === 0 && position.y > 7500) || (droneIndex % 2 === 1 && position.y > 7500))) return null;
+        if (previousFishTypeTargeted === FishType.SHELL && ((droneIndex % 2 === 0 && position.y > 8000) || (droneIndex % 2 === 1 && position.y > 8000))) return null;
         else if (previousFishTypeTargeted < FishType.SHELL && position.y > 5000) return FishType.SHELL;
         else if (previousFishTypeTargeted < FishType.CLASSIC && position.y > 2500) return FishType.CLASSIC;
         else return previousFishTypeTargeted;
@@ -352,6 +352,11 @@ while (true) {
             && (drone.fishTypeTargeted === null || fishDetails.get(blip.fishId)?.type === drone.fishTypeTargeted)).sort((fishA, fishB) => calcDistance(drone.pos, fishA.approximatePosition) - calcDistance(drone.pos, fishB.approximatePosition));
 
         if (radarBlipsWithoutMonsterOfRightType.length === 0) {
+            radarBlipsWithoutMonsterOfRightType = fishesApproxPositions.filter(blip => !myScans.includes(blip.fishId) && !scansToValidate.includes(blip.fishId) && (creaturesLeftToScan <= 1 || !alreadyPursuedFishes.includes(blip.fishId)) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER
+                && (drone.fishTypeTargeted === null || fishDetails.get(blip.fishId)?.type >= drone.fishTypeTargeted)).sort((fishA, fishB) => calcDistance(drone.pos, fishA.approximatePosition) - calcDistance(drone.pos, fishB.approximatePosition));
+
+        }
+        if (radarBlipsWithoutMonsterOfRightType.length === 0) {
             radarBlipsWithoutMonsterOfRightType = fishesApproxPositions.filter(blip => !myScans.includes(blip.fishId) && !scansToValidate.includes(blip.fishId) && (creaturesLeftToScan <= 1 || !alreadyPursuedFishes.includes(blip.fishId)) && fishDetails.get(blip.fishId)?.type !== FishType.MONSTER).sort((fishA, fishB) => calcDistance(drone.pos, fishA.approximatePosition) - calcDistance(drone.pos, fishB.approximatePosition));
         }
         let targetX = null;
@@ -366,9 +371,9 @@ while (true) {
             targetY = Math.round(Math.random() * 10000);
             message = "OUIIIIIIIIIII"
         }
-        else if ((drone.scans.length > 0 && drone.pos.y <= 1250) || (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
-            targetX = drone.pos.x;
-            targetY = 300;
+        else if ((drone.scans.length > 0 && drone.pos.y <= 1250) || ( /*parseInt(droneIndex) == -1 &&*/ drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
+            targetX = drone.xRestPosition;
+            targetY = 0;
             message = "Surface"
         }
         else if (radarBlipsWithoutMonsterOfRightType?.length > 0) {
@@ -400,7 +405,7 @@ while (true) {
             if (potentialNextPositions.length < 1) {
                 potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50);
             }
-            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: drone.xRestPosition, y: 300 },);
+            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: drone.xRestPosition, y: 0 },);
             myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
             console.log(`MOVE ${x} ${y} ${light} ${drone.droneId} ${message}`)
         }
