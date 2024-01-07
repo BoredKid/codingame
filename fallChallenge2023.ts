@@ -367,8 +367,8 @@ while (true) {
             message = "OUIIIIIIIIIII"
         }
         else if ((drone.scans.length > 0 && drone.pos.y <= 1250) || (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
-            targetX = drone.xRestPosition;
-            targetY = 0;
+            targetX = drone.pos.x;
+            targetY = 300;
             message = "Surface"
         }
         else if (radarBlipsWithoutMonsterOfRightType?.length > 0) {
@@ -400,7 +400,7 @@ while (true) {
             if (potentialNextPositions.length < 1) {
                 potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50);
             }
-            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: drone.xRestPosition, y: 0 },);
+            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: drone.xRestPosition, y: 300 },);
             myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
             console.log(`MOVE ${x} ${y} ${light} ${drone.droneId} ${message}`)
         }
