@@ -10,7 +10,7 @@
 
 [X] determine a range position for each fish depending of blips from drones
 
-[ ] use type of fish to determine altitude position more precisely
+[X] use type of fish to determine altitude position more precisely
 
 [X] if battery is charged light up and speed max else reduce speed with light down -> finalement pas ouf
 

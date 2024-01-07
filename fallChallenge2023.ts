@@ -45,6 +45,7 @@ interface Drone {
     lastTarget?: Vector
     numberOfScansToGoUp?: number
     fishTypeTargeted?: FishType | null
+    xRestPosition?: number
 }
 
 // Les valeurs du radars pour repérés les poissons
@@ -117,21 +118,6 @@ const calcDistance: (vec1: Vector, vec2: Vector) => number = (vec1, vec2) => {
 
 const goToOppositeDirection: (diffX: number, diffY: number, altitude: number) => Vector = (diffX, diffY, altitude) => {
     return { x: diffX > 0 ? 9999 : 0, y: altitude >= 7500 ? 0 : diffY > 0 ? 9999 : 0 }
-}
-
-const getMoveFromRadar: (radar: RadarValue) => number[] = (radar) => {
-    switch (radar) {
-        case 'TL':
-            return [0, 0]
-        case 'TR':
-            return [9999, 0]
-        case 'BR':
-            return [9999, 9999]
-        case 'BL':
-            return [0, 9999]
-        default:
-            return [5000, 5000]
-    }
 }
 
 const getVerticalMoveFromRadar: (vRadar1: string, vRadar2: string, y1: number, y2: number) => number = (vRadar1: string, vRadar2: string, y1: number, y2: number) => {
@@ -278,7 +264,7 @@ let myDroneCount = parseInt(readline())
 for (let i = 0; i < myDroneCount; i++) {
     const [droneId, droneX, droneY, dead, battery] = readline().split(' ').map(Number)
     const pos = { x: droneX, y: droneY }
-    const drone: Drone = { droneId, pos, dead, battery, scans: [], lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3, fishTypeTargeted: FishType.OCTOPUS }
+    const drone: Drone = { droneId, pos, dead, battery, scans: [], lastTarget: { x: 0, y: 0 }, numberOfScansToGoUp: i % 2 == 0 ? 2 : 3, fishTypeTargeted: FishType.OCTOPUS, xRestPosition: droneX }
     droneById.set(droneId, drone)
     myDrones.push(drone)
     myRadarBlips.set(droneId, [])
@@ -336,7 +322,7 @@ let fishesApproxPositions = Object.keys(fishesRadar).map((fishId) => {
     }
 })
 
-
+let turn = 0;
 
 //  * Execution du programme:  game loop *
 while (true) {
@@ -370,9 +356,10 @@ while (true) {
         let light = drone.pos.y >= 2500 ? 1 : 0; // no need to activate light too early
         let message = "Nothing to do so ... Surface";
 
+
         // target decision
-        if ((drone.scans.length > 0 && drone.pos.y <= 1250) || (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) || creaturesLeftToScan <= 0) {
-            targetX = x;
+        if ((drone.scans.length > 0 && drone.pos.y <= 1250) || /* (drone.fishTypeTargeted === null && drone.scans.length >= drone.numberOfScansToGoUp) ||*/ creaturesLeftToScan <= 0) {
+            targetX = drone.xRestPosition;
             targetY = 0;
             message = "Surface"
         }
@@ -405,7 +392,7 @@ while (true) {
             if (potentialNextPositions.length < 1) {
                 potentialNextPositions = calcNextPositions(drone.pos, monstersSortedByClosest, 50);
             }
-            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: drone.pos.x, y: 0 },);
+            const { x, y } = findBetterNextPosition(drone.pos, potentialNextPositions, { x: drone.xRestPosition, y: 0 },);
             myDrones[droneIndex] = { ...myDrones[droneIndex], lastTarget: { x: targetX, y: targetY } }
             console.log(`MOVE ${x} ${y} ${light} ${drone.droneId} ${message}`)
         }
@@ -496,5 +483,5 @@ while (true) {
             )
         }
     })
-
+    turn = turn + 1;
 }
