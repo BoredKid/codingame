@@ -20,10 +20,9 @@ while (true) {
     const rotate = parseInt(inputs[5]); // the rotation angle in degrees (-90 to 90).
     const power = parseInt(inputs[6]); // the thrust power (0 to 4).
 
-    // Write an action using console.log()
-    // To debug: console.error('Debug messages...');
+    const nextMove = geneticAlgorithm(land, X, Y, hSpeed, vSpeed, fuel, rotate, power);
 
 
     // rotate power. rotate is the desired rotation angle. power is the desired thrust power.
-    console.log('-20 3');
+    console.log(`${nextMove.rotation} ${nextMove.thrust}`);
 }
