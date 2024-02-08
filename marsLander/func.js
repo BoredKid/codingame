@@ -30,17 +30,58 @@ export const getNewAngle = (rotation, angle) => {
     return Math.abs(safeRotation - angle) <= ROCKET_MAX_DIFF_ANGLE ? safeRotation : (safeRotation > angle ? angle + ROCKET_MAX_DIFF_ANGLE : angle - ROCKET_MAX_DIFF_ANGLE)
 }
 
+export const findLandingZone = (land) => {
+    for (let i = 1; i < land.length; i++) {
+        const { x: x0, y: y0 } = land[i - 1];
+        const { x: x1, y: y1 } = land[i]
+        if (Math.abs(x0 - x1) > 999 && y0 === y1) {
+            return { start: x0, end: x1, altitude: y0 }
+        }
+    }
+}
+
+export const calcAltitude = (x, x0, y0, x1, y1) => {
+    return Math.floor((y1 * Math.abs(x - x0) + y0 * Math.abs(x1 - x)) / (Math.abs(x0 - x1)))
+}
+
+export const hasCrashedOutsideOfLandingZone = (land, x, y, landingZone) => {
+    if (x >= landingZone.start && x <= landingZone.end) {
+        return false;
+    } else {
+        // find where the altitude of the land where the rocket is
+        let i = 0;
+        while (i < land.length && x > land[i].x) {
+            i += 1;
+        }
+        if (i === land.length) {
+            // somethings wrong because the point is not on the map
+            return true;
+        } else {
+            const { x: x0, y: y0 } = land[i - 1];
+            const { x: x1, y: y1 } = land[i];
+            return y < calcAltitude(x, x0, y0, x1, y1)
+        }
+    }
+}
+
+// we're not going to bother with with calculating distance from the closest point of the rocket for now
+export const calcDistanceToLandingZone = (landingZone, x, y) => {
+    const xLanding = Math.floor((landingZone.start + landingZone.end) / 2);
+    return Math.floor(Math.sqrt(Math.pow(xLanding - x, 2) + Math.pow(landingZone.altitude - y, 2)))
+
+}
+
 // GENETIC ALGO
 // GENETIC ALGO CONSTS
-const POP = 40; // doit etre divisible par 5
-const ADN = 4; // doit etre divisible par 2, nombre de tours cotenu dans une solution
+const POP = 10; // doit etre divisible par 5
+const ADN = 20; // doit etre divisible par 2, nombre de tours cotenu dans une solution
 const GENES = [
     { rotation: 0, thrust: 0 },
     { rotation: 0, thrust: 4 },
-    { rotation: 70, thrust: 0 },
-    { rotation: 70, thrust: 4 },
-    { rotation: -70, thrust: 0 },
-    { rotation: -70, thrust: 4 },
+    { rotation: 90, thrust: 0 },
+    { rotation: 90, thrust: 4 },
+    { rotation: -90, thrust: 0 },
+    { rotation: -90, thrust: 4 },
 ]
 const GENERATIONS = 200;
 
@@ -69,40 +110,38 @@ export const initPopulation = () => {
     return firstPopulation;
 }
 
-// TODO: end evaluate function and calcScore
-const evaluate = (land, individual, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower) => {
+const evaluate = (land, landingZone, individual, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower) => {
     let missionFailed = false;
+
     let [x, y, hSpeed, vSpeed, fuel, angle, power] = [firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower];
 
     for (let i = 0; i < ADN; i++) {
-        // if (tryToAccelerateWithoutFuel(fuel, individual[i])) {
-        //     missionFailed = true;
-        //     break;
-        // }
+
         const { newPower, newAngle, newFuel, newVSpeed, newHSpeed, newY, newX } = calcNextTurn(individual[i], x, y, hSpeed, vSpeed, fuel, angle, power);
         [x, y, hSpeed, vSpeed, fuel, angle, power] = [newX, newY, newHSpeed, newVSpeed, newFuel, newAngle, newPower];
-
-        // if (hasCrashed(land, x, y)) {
-        //     missionFailed = true;
-        //     break;
-        // }
+        if (hasCrashedOutsideOfLandingZone(land, x, y, landingZone)) {
+            missionFailed = true;
+            break;
+        }
 
     }
 
-    if (missionFailed) return -50000
-    else {
-        // return calcScore(land, x, y, hSpeed, vSpeed, fuel, angle, power)
-        return Math.floor(Math.random() * 10000)
-    }
+    let distanceFromLandingZone = calcDistanceToLandingZone(landingZone, x, y);
+    let score = Math.round((7000 - distanceFromLandingZone) * 600 / 7000) + Math.round((50 - Math.abs(vSpeed)) * 300 / 50) + Math.round((90 - Math.abs(angle)) * 300 / 90);
+    if (distanceFromLandingZone < 500) {
+        score += Math.round((30 - Math.abs(hSpeed)) * 300 / 50)
+    }; // the bigger the distance, the less point we win with a maximum of 100 points per turn
+    if (missionFailed) return score - 3000;
+    else return score
 
 
 }
 
-const tournament = (population, land, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower) => {
+const tournament = (population, land, landingZone, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower) => {
     let scores = []
 
     for (let j = 0; j < POP; j++) {
-        scores[j] = evaluate(land, population[j], firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower);
+        scores[j] = evaluate(land, landingZone, population[j], firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower);
     }
     return scores;
 }
@@ -143,10 +182,11 @@ const getNewPopulation = (population, scores) => {
     return newPop;
 }
 
-const geneticAlgorithm = (land, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower) => {
+const geneticAlgorithm = (land, landingZone, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower) => {
+
     let population = initPopulation();
     for (let g = 0; g < GENERATIONS; g++) {
-        const scores = tournament(population, land, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower)
+        const scores = tournament(population, land, landingZone, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower)
         population = getNewPopulation(population, scores);
     }
 

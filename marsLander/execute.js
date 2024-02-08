@@ -20,7 +20,8 @@ while (true) {
     const rotate = parseInt(inputs[5]); // the rotation angle in degrees (-90 to 90).
     const power = parseInt(inputs[6]); // the thrust power (0 to 4).
 
-    const nextMove = geneticAlgorithm(land, X, Y, hSpeed, vSpeed, fuel, rotate, power);
+    const landingZone = findLandingZone(land);
+    const nextMove = geneticAlgorithm(land, landingZone, X, Y, hSpeed, vSpeed, fuel, rotate, power);
 
 
     // rotate power. rotate is the desired rotation angle. power is the desired thrust power.
