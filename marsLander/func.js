@@ -35,7 +35,7 @@ export const findLandingZone = (land) => {
         const { x: x0, y: y0 } = land[i - 1];
         const { x: x1, y: y1 } = land[i]
         if (Math.abs(x0 - x1) > 999 && y0 === y1) {
-            return { start: x0, end: x1, altitude: y0 }
+            return { start: x0 + 100, end: x1 - 100, altitude: y0 }
         }
     }
 }
@@ -73,8 +73,9 @@ export const calcDistanceToLandingZone = (landingZone, x, y) => {
 
 // GENETIC ALGO
 // GENETIC ALGO CONSTS
-const POP = 10; // doit etre divisible par 5
-const ADN = 20; // doit etre divisible par 2, nombre de tours cotenu dans une solution
+const POP = 20; // doit etre divisible par 5
+const ADN = 40; // doit etre divisible par 2, nombre de tours contenus dans une solution
+// TODO: generate random genes
 const GENES = [
     { rotation: 0, thrust: 0 },
     { rotation: 0, thrust: 4 },
@@ -84,6 +85,7 @@ const GENES = [
     { rotation: -90, thrust: 4 },
 ]
 const GENERATIONS = 200;
+const MUTATIONS_NUMBER = 200;
 
 // this function calculate the parameters of next turn of the simulation
 export const calcNextTurn = ({ rotation, thrust }, X, Y, hSpeed, vSpeed, fuel, angle, power) => {
@@ -119,20 +121,33 @@ const evaluate = (land, landingZone, individual, firstX, firstY, firstHSpeed, fi
 
         const { newPower, newAngle, newFuel, newVSpeed, newHSpeed, newY, newX } = calcNextTurn(individual[i], x, y, hSpeed, vSpeed, fuel, angle, power);
         [x, y, hSpeed, vSpeed, fuel, angle, power] = [newX, newY, newHSpeed, newVSpeed, newFuel, newAngle, newPower];
-        if (hasCrashedOutsideOfLandingZone(land, x, y, landingZone)) {
+        if (y <= landingZone.altitude && landingZone.start < x && x < landingZone.end) { // ship has landed
+            break;
+        }
+        if (hasCrashedOutsideOfLandingZone(land, x, y, landingZone)) { // ship has crashed
             missionFailed = true;
             break;
         }
 
     }
 
-    let distanceFromLandingZone = calcDistanceToLandingZone(landingZone, x, y);
-    let score = Math.round((7000 - distanceFromLandingZone) * 600 / 7000) + Math.round((50 - Math.abs(vSpeed)) * 300 / 50) + Math.round((90 - Math.abs(angle)) * 300 / 90);
-    if (distanceFromLandingZone < 500) {
-        score += Math.round((30 - Math.abs(hSpeed)) * 300 / 50)
-    }; // the bigger the distance, the less point we win with a maximum of 100 points per turn
-    if (missionFailed) return score - 3000;
-    else return score
+    // if (missionFailed) {
+    //     return -200;
+    // } else
+    if (!(y <= landingZone.altitude && landingZone.start < x && x < landingZone.end)) { // si on a pas atteri sur la zone
+        let distanceFromLandingZone = calcDistanceToLandingZone(landingZone, x, y);
+        const distancePenality = Math.round(distanceFromLandingZone);
+        const velocityPenality = Math.round((Math.abs(vSpeed) + Math.abs(hSpeed)) * 2);
+        return 1000 - (distancePenality + velocityPenality);
+    } else if (Math.abs(hSpeed) > 20 || Math.abs(vSpeed) > 40 || angle !== 0) {
+        const vSpeedPenalty = vSpeed;
+        const hSpeedPenalty = Math.abs(hSpeed);
+        const anglePenalty = Math.abs(angle);
+        const penality = (-vSpeedPenalty) + hSpeedPenalty + anglePenalty;
+        return 1000 - penality
+    } else {
+        return 1000;
+    }
 
 
 }
@@ -149,8 +164,9 @@ const tournament = (population, land, landingZone, firstX, firstY, firstHSpeed, 
 const getNewPopulation = (population, scores) => {
     let sortedPopulation = population.map((individual, i) => ({ individual, score: scores[i] })).sort((a, b) => b.score - a.score);
     let sortedPopulationNoScore = sortedPopulation.map(member => member.individual);
-    let newPop = sortedPopulationNoScore.slice(0, POP / 5);
-    for (let a = 0; a < POP / 5; a++) {
+    let fifthPop = POP / 5;
+    let newPop = sortedPopulationNoScore.slice(0, fifthPop);
+    for (let a = 0; a < fifthPop; a++) {
         let newIndividual1 = [];
         let newIndividual2 = [];
         for (let m = 0; m < ADN; m++) {
@@ -164,7 +180,7 @@ const getNewPopulation = (population, scores) => {
         }
         newPop = newPop.concat([newIndividual1, newIndividual2])
     }
-    for (let b = 0; b < POP / 5; b++) {
+    for (let b = 0; b < fifthPop; b++) {
         let newIndividual = [];
         for (let m = 0; m < ADN; m++) {
             if (m <= ADN / 2) {
@@ -175,20 +191,28 @@ const getNewPopulation = (population, scores) => {
         }
         newPop = newPop.concat([newIndividual])
     }
-    for (let c = 0; c < POP / 5; c++) {
+    for (let c = 0; c < fifthPop; c++) {
         newPop = newPop.concat([Array(ADN).fill({}).map(() => GENES[Math.floor(Math.random() * GENES.length)])])
     }
 
+    for (let m = 0; m < MUTATIONS_NUMBER; m++) {
+        let i = Math.floor(Math.random() * POP);
+        let g = Math.floor(Math.random() * ADN);
+        newPop[i][g] = GENES[Math.floor(Math.random() * GENES.length)];
+    } // mutations
     return newPop;
 }
 
 const geneticAlgorithm = (land, landingZone, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower) => {
 
     let population = initPopulation();
+    let bestScore = [];
     for (let g = 0; g < GENERATIONS; g++) {
         const scores = tournament(population, land, landingZone, firstX, firstY, firstHSpeed, firstVSpeed, firstFuel, firstAngle, firstPower)
+        bestScore = scores;
         population = getNewPopulation(population, scores);
     }
 
+    console.error(bestScore)
     return population[0][0]; // the best solution
 }
