@@ -1,11 +1,10 @@
-// import { getNewPower, getNewAngle, calcNextTurn, findLandingZone, calcAltitude, hasCrashedOutsideOfLandingZone, calcDistanceToLandingZone } from "./func.js";
+import { POP, ADN, GENES, initPopulation } from "./func.js";
 
-// test('getNewPower', () => {
-//     expect(getNewPower(4, 2)).toBe(3);
-//     expect(getNewPower(0, 0)).toBe(0);
-//     expect(getNewPower(3, 4)).toBe(3);
-//     expect(getNewPower(0, 3)).toBe(2);
-// })
+test('initPopulation', () => {
+    expect(initPopulation().length).toBe(POP);
+    expect(initPopulation()[0].length).toBe(ADN);
+    expect(GENES).toContain(initPopulation()[0][0]);
+})
 // test('getNewAngle', () => {
 //     expect(getNewAngle(0, 90)).toBe(75);
 //     expect(getNewAngle(78, 82)).toBe(78);

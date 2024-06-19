@@ -1,122 +1,104 @@
+// GENETIC ALGO
+// GENETIC ALGO CONSTS
+export const POP = 45; // nombre de solutions par générations (multiple de 3 et 5)
+export const ADN = 10; // nombre de genes (tours de jeu) contenus dans une solution
+export const GENES = ["RIGHT", "UP", "DOWN", "LEFT"] // valeurs de gene possible (output de tour possible)
+const GENERATIONS = 200; // nombre de générations
+const MUTATIONS_NUMBER = 40; // nombre de mutations par génération
+
+const NB_TURNS = 4; // nombre de manche en tournoi
+
+
+// generate of first population of solution
+export const initPopulation = () => {
+    return Array(POP).fill(0).map(() => Array(ADN).fill(0).map(() => GENES[Math.floor(Math.random() * GENES.length)]))
+}
+
+// play a few turns of the game and return the scores of each solution
+// we play the game 6 times with each solution playing each player
+// but we rank the solution by the score they get as playerIdx ? (not sure about this)
+export const playMatch = (gameState, solutions) => {
+
+}
+
+// create an opposition between all the solutions of a generations
+export const tournament = (initialGameState, unrankedPopulation) => {
+    let rankedPopulation = [...unrankedPopulation];
+    for (let i = 0; i < NB_TURNS; i++) {
+        for (let g = 0; g < rankedPopulation.length / 3; g++) {
+            let pop = unrankedPopulation.slice(g * 3, (g + 1) * 3).reduce((acc, sol, index) => ({ ...acc, [index]: sol }), {});
+            let scores = playMatch(initialGameState, pop);
+            let rankedPop = Object.keys(scores).map((key) => ({ score: scores[key].score, solution: pop[key] }));
+            if (g === 0) {
+                rankedPopulation[g] = rankedPop[0].solution;
+                rankedPopulation[g * 3 + 1] = rankedPop[1].solution;
+                rankedPopulation[(g + 1) * 3] = rankedPop[2].solution;
+            } else if (g === ((unrankedPopulation.length / 3) - 1)) {
+                rankedPopulation[(g - 1) * 3 + 2] = rankedPop[0].solution;
+                rankedPopulation[g * 3 + 1] = rankedPop[1].solution;
+                rankedPopulation[g * 3 + 2] = rankedPop[2].solution;
+            } else {
+                rankedPopulation[(g - 1) * 3 + 2] = rankedPop[0].solution;
+                rankedPopulation[g * 3 + 1] = rankedPop[1].solution;
+                rankedPopulation[(g + 1) * 3] = rankedPop[2].solution;
+            }
+        }
+    }
+
+    return rankedPopulation;
+}
+
+// generate a new population based on the ranking of the population of the previous generation
+export const getNewPopulation = (rankedPopulation) => {
+    let fifthPop = POP / 5;
+    let newPop = rankedPopulation.slice(0, fifthPop);
+    for (let a = 0; a < fifthPop; a++) {
+        let newIndividual1 = [];
+        let newIndividual2 = [];
+        for (let m = 0; m < ADN; m++) {
+            if (m % 2 === 0) {
+                newIndividual1[m] = rankedPopulation[a][m];
+                newIndividual2[m] = rankedPopulation[a + 1][m];
+            } else {
+                newIndividual2[m] = rankedPopulation[a][m];
+                newIndividual1[m] = rankedPopulation[a + 1][m];
+            }
+        }
+        newPop = newPop.concat([newIndividual1, newIndividual2])
+    }
+    for (let b = 0; b < fifthPop; b++) {
+        let newIndividual = [];
+        for (let m = 0; m < ADN; m++) {
+            if (m <= ADN / 2) {
+                newIndividual[m] = rankedPopulation[b][m];
+            } else {
+                newIndividual[m] = rankedPopulation[b + 1][m];
+            }
+        }
+        newPop = newPop.concat([newIndividual])
+    }
+    for (let c = 0; c < fifthPop; c++) {
+        newPop = newPop.concat([Array(ADN).fill(0).map(() => GENES[Math.floor(Math.random() * GENES.length)])])
+    }
+
+    for (let m = 0; m < MUTATIONS_NUMBER; m++) {
+        let i = 1 + Math.floor(Math.random() * (POP - 1)); // on ne veut pas muter le premier
+        let g = Math.floor(Math.random() * ADN);
+        newPop[i][g] = GENES[Math.floor(Math.random() * GENES.length)];
+    }
+
+    return newPop;
+}
 
 const geneticAlgorithm = (playerIdx, nbGames, scores, games) => {
+    const gameState = { playerIdx, nbGames, scores, games }
 
-
-    let myMedals = []; // my number of medals each turn by game
-    let minScore = 99999999999;
-    let minScoreGame = -1;
-    for (let i = 0; i < 3; i++) {
-        const scoreInfo = scores[i];
-        if (i === playerIdx) {
-            const allMyMedals = scoreInfo.split(" ").slice(1);
-            for (let j = 0; j < 4; j++) {
-                myMedals[j] = allMyMedals.slice(3 * j, 3 * j + 3);
-                const gameScore = (myMedals[j][0] * 3 + myMedals[j][1])
-                if (minScore > gameScore) {
-                    minScore = gameScore;
-                    minScoreGame = j;
-                }
-            }
-        }
-
+    let population = initPopulation();
+    for (let g = 0; g < GENERATIONS; g++) {
+        const rankedPopulation = tournament(gameState, population)
+        population = getNewPopulation(rankedPopulation);
     }
 
-    let movesAreValid = {
-        RIGHT: 0,
-        UP: 0,
-        DOWN: 0,
-        LEFT: 0,
-    }
-
-    for (let game = 0; game < nbGames; game++) {
-        const { gpu,
-            reg0,
-            reg1,
-            reg2,
-            reg3,
-            reg4,
-            reg5,
-            reg6 } = games[game];
-        let baseScore = 1;
-        // 224 before adding condition on game 3 below
-        if (game === minScoreGame || (myMedals[game][0]) < 1) baseScore = 2;
-
-        if (game === 0) { // haies
-            const pos = [reg0, reg1, reg2];
-            const currentPos = pos[playerIdx]
-            const stun = [reg3, reg4, reg5];
-            const stunTurns = stun[playerIdx];
-
-
-
-            let nextWall = gpu.split("").reduce((acc, nature, cell) => nature === "#" ? [...acc, cell] : acc, [])
-                .filter(cell => cell > currentPos)[0];
-
-
-            if (gpu !== "GAME_OVER" && stunTurns === 0) {
-                if (nextWall) {
-                    // on peut essayer d'ajouter un modificateur pour prioriser RIGHT
-                    if (nextWall > currentPos + 3) movesAreValid.RIGHT += baseScore;
-                    if (nextWall > currentPos + 2) movesAreValid.DOWN += baseScore;
-                    if (nextWall > currentPos + 1) movesAreValid.LEFT += baseScore;
-                    if (nextWall !== currentPos + 2) movesAreValid.UP += baseScore;
-                }
-            }
-        } else if (game === 1) {// tir à l'arc{}
-            const coord = [{ x: reg0, y: reg1 }, { x: reg2, y: reg3 }, { x: reg4, y: reg5 }];
-            const myCoord = coord[playerIdx];
-
-
-
-            if (gpu !== "GAME_OVER") {
-                let wind = parseInt(gpu.split("")[0]);
-                if (wind) {
-                    if (Math.abs(myCoord.x + wind) < Math.abs(myCoord.x)) movesAreValid.RIGHT += baseScore;
-                    if (Math.abs(myCoord.y + wind) < Math.abs(myCoord.y)) movesAreValid.DOWN += baseScore;
-                    if (Math.abs(myCoord.x - wind) < Math.abs(myCoord.x)) movesAreValid.LEFT += baseScore;
-                    if (Math.abs(myCoord.y - wind) < Math.abs(myCoord.y)) movesAreValid.UP += baseScore;
-                }
-            }
-
-        } else if (game === 2) {// roller
-            const pos = [reg0, reg1, reg2];
-            const currentPos = pos[playerIdx]
-            const risks = [reg3, reg4, reg5];
-            const myRisk = risks[playerIdx];
-            const turnsLeft = parseInt(inputs[7]);
-
-            if (gpu !== "GAME_OVER") {
-                let riskOrder = gpu.split("").reduce((acc, action, index) => ({ ...acc, [action]: index }), {})
-                if (myRisk + riskOrder.R < 4) movesAreValid.RIGHT += baseScore;
-                if (myRisk + riskOrder.D < 4) movesAreValid.DOWN += baseScore;
-                if (myRisk + riskOrder.L < 4) movesAreValid.LEFT += baseScore;
-                if (myRisk + riskOrder.U < 4) movesAreValid.UP += baseScore;
-            }
-
-        } else if (game === 3) {// plongée
-
-            const scores = [reg0, reg1, reg2];
-            const currentScore = scores[playerIdx]
-
-            const combos = [reg3, reg4, reg5];
-            const myCombo = combos[playerIdx];
-
-            if (gpu !== "GAME_OVER") {
-                let nextMove = gpu.split("")[0]
-                if (nextMove === "R") movesAreValid.RIGHT += baseScore;
-                if (nextMove === "D") movesAreValid.DOWN += baseScore;
-                if (nextMove === "L") movesAreValid.LEFT += baseScore;
-                if (nextMove === "U") movesAreValid.UP += baseScore;
-            }
-        }
-
-
-
-
-    }
-    console.error(movesAreValid)
-    let sortedValidMoves = Object.keys(movesAreValid).sort((key1, key2) => movesAreValid[key2] - movesAreValid[key1])
-    console.error(sortedValidMoves)
-    return sortedValidMoves[0]
+    return population[0][0]; // the best solution
 
 }

@@ -11,7 +11,8 @@
   },
   "scripts": {
     "output": "node outputBuilder.js",
-    "test-mars-lander": "jest  --coverage --coverageReporters=text --testPathPattern=marsLander"
+    "test-mars-lander": "jest  --coverage --coverageReporters=text --testPathPattern=marsLander",
+    "test-summer-2024": "jest  --coverage --coverageReporters=text --testPathPattern=summerChallenge2024"
   },
   "author": "",
   "license": "ISC",
