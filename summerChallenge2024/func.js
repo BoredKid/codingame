@@ -1,3 +1,25 @@
+// Game state interface
+// {
+//     playerIdx: int;
+//     nbGames: int;
+//     scores: string[][]; // tableau de 12 nombres chaque nombre représentant les médailles pour chaques jeu
+//     games: {
+//         gpu: string;
+//         reg0: int;
+//         reg1: int;
+//         reg2: int;
+//         reg3: int;
+//         reg4: int;
+//         reg5: int;
+//         reg6: int;
+//     }[];
+// }
+
+// jeux 0:  haies
+// jeux 1:  tir à l'arc
+// jeux 2:  roller
+// jeux 3:  plongée
+
 // GENETIC ALGO
 // GENETIC ALGO CONSTS
 export const POP = 45; // nombre de solutions par générations (multiple de 3 et 5)
@@ -6,7 +28,8 @@ export const GENES = ["RIGHT", "UP", "DOWN", "LEFT"] // valeurs de gene possible
 const GENERATIONS = 200; // nombre de générations
 const MUTATIONS_NUMBER = 40; // nombre de mutations par génération
 
-const NB_TURNS = 4; // nombre de manche en tournoi
+const NB_TURNS_TOURNAMENT = 4; // nombre de manche en tournoi
+
 
 
 // generate of first population of solution
@@ -14,21 +37,46 @@ export const initPopulation = () => {
     return Array(POP).fill(0).map(() => Array(ADN).fill(0).map(() => GENES[Math.floor(Math.random() * GENES.length)]))
 }
 
+// TODO: work in progress
+export const playTurn = (gameState, nextMoves) => {
+    let newGameState = { ...gameState };
+    for (let game = 0; game < gameState.nbGames; game++) {
+        let newMedals = playGame[game](nextMoves, gameState.games[game]);
+    }
+
+    return newGameState;
+}
+
 // play a few turns of the game and return the scores of each solution
 // we play the game 6 times with each solution playing each player
 // but we rank the solution by the score they get as playerIdx ? (not sure about this)
-export const playMatch = (gameState, solutions) => {
-
+export const playMatch = (initGameState, solutions) => {
+    let results = [0, 0, 0];
+    let orders = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    for (let i = 0; i < 6; i++) {
+        let gameState = { ...initGameState };
+        for (let t = 0; t < ADN; t++) {
+            let nextMoves = ["", "", ""];
+            nextMoves[gameState.playerIdx] = solutions[orders[i][0]][t];
+            nextMoves[(gameState.playerIdx + 1) % 3] = solutions[orders[i][1]][t];
+            nextMoves[(gameState.playerIdx + 2) % 3] = solutions[orders[i][2]][t];
+            gameState = playTurn(gameState, nextMoves);
+        }
+        const initScore = initGameState.scores[initGameState.playerIdx];
+        const finalScore = gameState.scores[initGameState.playerIdx];
+        results[orders[i][0]] += finalScore - initScore;
+    }
+    return results;
 }
 
 // create an opposition between all the solutions of a generations
 export const tournament = (initialGameState, unrankedPopulation) => {
     let rankedPopulation = [...unrankedPopulation];
-    for (let i = 0; i < NB_TURNS; i++) {
+    for (let i = 0; i < NB_TURNS_TOURNAMENT; i++) {
         for (let g = 0; g < rankedPopulation.length / 3; g++) {
             let pop = unrankedPopulation.slice(g * 3, (g + 1) * 3).reduce((acc, sol, index) => ({ ...acc, [index]: sol }), {});
             let scores = playMatch(initialGameState, pop);
-            let rankedPop = Object.keys(scores).map((key) => ({ score: scores[key].score, solution: pop[key] }));
+            let rankedPop = Object.keys(scores).map((key) => ({ score: scores[key], solution: pop[key] }));
             if (g === 0) {
                 rankedPopulation[g] = rankedPop[0].solution;
                 rankedPopulation[g * 3 + 1] = rankedPop[1].solution;

@@ -6,7 +6,7 @@ const nbGames = parseInt(readline());
 while (true) {
     let scores = [];
     for (let i = 0; i < 3; i++) {
-        scores[i] = readline();
+        scores[i] = readline().split(" ").slice(1);
     }
     let games = [];
     for (let i = 0; i < nbGames; i++) {
